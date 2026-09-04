@@ -48,6 +48,11 @@ class ControlRequest(BaseModel):
     service: str | None = None
 
 
+class ApprovalRequest(BaseModel):
+    release_id: str
+    reason: str
+
+
 def load_auth_config():
     with open(AUTH_FILE, "r") as handle:
         return json.load(handle)
@@ -261,6 +266,21 @@ def control_action_history():
             return JSONResponse(content=json.loads(result.read()))
     except (URLError, OSError) as exc:
         raise HTTPException(status_code=502, detail=f"action engine unavailable: {exc}") from exc
+
+
+@app.get("/api/approvals")
+def approvals():
+    try:
+        with urlopen("http://127.0.0.1:5200/v1/releases", timeout=10) as result:
+            return JSONResponse(content=json.loads(result.read()))
+    except (URLError, OSError) as exc:
+        raise HTTPException(status_code=502, detail=f"release inventory unavailable: {exc}") from exc
+
+
+@app.post("/api/approvals")
+def approve(request: Request, approval: ApprovalRequest):
+    payload = json.dumps({"action": "approve_release", "release_id": approval.release_id, "approver": request.session.get("username", "unknown"), "reason": approval.reason}).encode()
+    return action_engine_request(payload)
 
 
 @app.post("/api/control")
