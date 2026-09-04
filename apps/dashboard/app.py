@@ -1,16 +1,19 @@
 from fastapi import FastAPI, Request, Query, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
 
 import os
 import json
 import hmac
+import hashlib
 import subprocess
 from datetime import datetime, timezone
 from collections import deque
 from urllib.request import urlopen, Request as URLRequest
 from urllib.error import URLError
+from urllib.parse import parse_qs
 from pydantic import BaseModel
 
 
@@ -36,6 +39,7 @@ AUTONOMY_AUDIT_LOG = os.path.join(BASE_DIR, "logs", "autonomy.jsonl")
 CONTROL_AUDIT_LOG = os.path.join(BASE_DIR, "apps", "dashboard", "data", "control.jsonl")
 CONTROLLED_SERVICES = {"router", "agent", "dashboard", "ollama", "llama-server", "monitor", "autonomy"}
 CONTROLLED_ACTIONS = {"restart_service", "health_check", "create_backup", "verify_deployment"}
+AUTH_FILE = os.path.join(BASE_DIR, "apps", "dashboard", "data", "auth.json")
 
 
 class ControlRequest(BaseModel):
@@ -43,10 +47,25 @@ class ControlRequest(BaseModel):
     service: str | None = None
 
 
+def load_auth_config():
+    with open(AUTH_FILE, "r") as handle:
+        return json.load(handle)
+
+
+AUTH_CONFIG = load_auth_config()
+
+
+def credentials_valid(username: str, password: str) -> bool:
+    try:
+        derived = hashlib.scrypt(password.encode(), salt=bytes.fromhex(AUTH_CONFIG["salt"]), n=2**14, r=8, p=1).hex()
+        return hmac.compare_digest(username, AUTH_CONFIG["username"]) and hmac.compare_digest(derived, AUTH_CONFIG["password_hash"])
+    except (KeyError, ValueError):
+        return False
+
+
 app = FastAPI(
     title="AI Server Dashboard"
 )
-
 
 app.mount(
     "/static",
@@ -64,9 +83,17 @@ templates = Jinja2Templates(
 
 @app.middleware("http")
 async def disable_dashboard_cache(request: Request, call_next):
+    public_paths = {"/login", "/api/health"}
+    if request.url.path not in public_paths and not request.url.path.startswith("/static/") and not request.session.get("authenticated"):
+        if request.url.path.startswith("/api/"):
+            return JSONResponse(status_code=401, content={"detail": "login required"})
+        return RedirectResponse(url="/login", status_code=303)
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+app.add_middleware(SessionMiddleware, secret_key=AUTH_CONFIG["session_secret"], session_cookie="llm_dashboard_session", same_site="strict", https_only=True, max_age=60 * 60 * 12)
 
 
 
@@ -119,6 +146,32 @@ def audit_control(action: str, service: str, success: bool, detail: str) -> None
     entry = {"time": datetime.now(timezone.utc).isoformat(), "action": action, "service": service, "success": success, "detail": detail}
     with open(CONTROL_AUDIT_LOG, "a") as handle:
         handle.write(json.dumps(entry) + "\n")
+
+
+@app.get("/login")
+async def login_page(request: Request):
+    if request.session.get("authenticated"):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": False})
+
+
+@app.post("/login")
+async def login(request: Request):
+    values = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+    username = values.get("username", [""])[0].strip()
+    password = values.get("password", [""])[0]
+    if not credentials_valid(username, password):
+        return templates.TemplateResponse(request=request, name="login.html", context={"error": True}, status_code=401)
+    request.session.clear()
+    request.session["authenticated"] = True
+    request.session["username"] = username
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
 
 
 
