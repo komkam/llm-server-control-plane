@@ -62,6 +62,13 @@ templates = Jinja2Templates(
 )
 
 
+@app.middleware("http")
+async def disable_dashboard_cache(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 
 def read_json(path, default):
 
