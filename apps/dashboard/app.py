@@ -33,12 +33,14 @@ HISTORY_FILE = os.path.join(
 
 AUTONOMY_STATE_FILE = os.path.join(DATA_DIR, "autonomy-state.json")
 AUTONOMY_AUDIT_LOG = os.path.join(BASE_DIR, "logs", "autonomy.jsonl")
-CONTROL_AUDIT_LOG = os.path.join(BASE_DIR, "dashboard", "data", "control.jsonl")
+CONTROL_AUDIT_LOG = os.path.join(BASE_DIR, "apps", "dashboard", "data", "control.jsonl")
 CONTROLLED_SERVICES = {"router", "agent", "dashboard", "ollama", "llama-server", "monitor", "autonomy"}
+CONTROLLED_ACTIONS = {"restart_service", "health_check", "create_backup", "verify_deployment"}
 
 
-class RestartRequest(BaseModel):
-    service: str
+class ControlRequest(BaseModel):
+    action: str
+    service: str | None = None
 
 
 app = FastAPI(
@@ -182,19 +184,40 @@ def api_incidents(service: str | None = Query(default=None), limit: int = Query(
     return {"events": events, "summary": summary, "service": service}
 
 
-@app.post("/api/control/restart")
-def restart_service(request: RestartRequest):
-    if request.service not in CONTROLLED_SERVICES:
-        raise HTTPException(status_code=400, detail="service is not controllable")
-    payload = json.dumps({"action": "restart_service", "target": request.service, "reason": "dashboard control panel"}).encode()
+def action_engine_request(payload):
     try:
         response = URLRequest("http://127.0.0.1:5200/v1/actions", data=payload, headers={"Content-Type": "application/json"}, method="POST")
         with urlopen(response, timeout=90) as result:
-            data = json.loads(result.read())
+            return json.loads(result.read())
     except (URLError, OSError) as exc:
         raise HTTPException(status_code=502, detail=f"action engine unavailable: {exc}") from exc
-    audit_control("restart", request.service, data["state"] == "SUCCESS", data.get("detail", ""))
+
+
+@app.get("/api/control/actions")
+def control_action_history():
+    try:
+        with urlopen("http://127.0.0.1:5200/v1/actions?limit=60", timeout=5) as result:
+            return JSONResponse(content=json.loads(result.read()))
+    except (URLError, OSError) as exc:
+        raise HTTPException(status_code=502, detail=f"action engine unavailable: {exc}") from exc
+
+
+@app.post("/api/control")
+def control(request: ControlRequest):
+    if request.action not in CONTROLLED_ACTIONS:
+        raise HTTPException(status_code=400, detail="action is not controllable")
+    if request.action in {"restart_service", "health_check"} and request.service not in CONTROLLED_SERVICES:
+        raise HTTPException(status_code=400, detail="service is not controllable")
+    payload = json.dumps({"action": request.action, "target": request.service, "reason": "dashboard control panel"}).encode()
+    data = action_engine_request(payload)
+    audit_control(request.action, request.service or "platform", data["state"] == "SUCCESS", data.get("detail", ""))
     return data
+
+
+@app.post("/api/control/restart")
+def restart_service(request: ControlRequest):
+    request.action = "restart_service"
+    return control(request)
 
 
 

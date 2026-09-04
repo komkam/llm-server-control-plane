@@ -7,6 +7,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from threading import Lock
+from collections import deque
 from urllib.request import urlopen
 
 from fastapi import FastAPI, HTTPException
@@ -44,6 +45,15 @@ def audit(**entry):
     entry["time"] = now()
     with open(AUDIT_LOG, "a") as handle:
         handle.write(json.dumps(entry) + "\n")
+
+
+def recent_actions(limit: int):
+    try:
+        with open(AUDIT_LOG, "r") as handle:
+            rows = deque(handle, maxlen=limit)
+        return [json.loads(row) for row in rows if row.strip()]
+    except OSError:
+        return []
 
 
 def healthy(service):
@@ -109,6 +119,11 @@ def execute(request: ActionRequest):
 @app.get("/health")
 def health():
     return {"status": "ok", "actions": ["restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "deploy_release", "rollback_release"]}
+
+
+@app.get("/v1/actions")
+def action_history(limit: int = 40):
+    return {"actions": recent_actions(max(1, min(limit, 200)))}
 
 
 @app.post("/v1/actions")
