@@ -10,7 +10,7 @@ Group=autonomy-agent
 SupplementaryGroups=dashboard-agent
 WorkingDirectory=/opt/llm-server/services
 ExecStart=/opt/llm-server/venv/bin/python /opt/llm-server/services/autonomy.py
-Environment=AUTONOMY_ACTION_MODE=observe
+Environment=AUTONOMY_ACTION_MODE=auto
 Restart=always
 RestartSec=10
 UMask=0077

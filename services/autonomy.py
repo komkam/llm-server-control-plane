@@ -164,6 +164,7 @@ def restarts_in_window(record: dict, current_time: float) -> int:
 
 def supervise_once(state: dict | None = None) -> dict:
     state = state or load_state()
+    state["mode"] = ACTION_MODE
     service_state = state.setdefault("services", {})
     current_time = time.time()
 
@@ -225,7 +226,7 @@ def supervise_once(state: dict | None = None) -> dict:
 
 
 def run() -> None:
-    audit("supervisor_started", services=list(SERVICES))
+    audit("supervisor_started", services=list(SERVICES), mode=ACTION_MODE)
     while True:
         try:
             supervise_once()
