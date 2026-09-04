@@ -1,0 +1,25 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+
+    ports:
+      - "3000:8080"
+
+    volumes:
+      - ./open-webui:/app/backend/data
+
+    environment:
+      OPENAI_API_BASE_URL: http://host.docker.internal:5000/v1
+      OPENAI_API_KEY: local-llm
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge

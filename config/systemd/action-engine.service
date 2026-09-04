@@ -1,0 +1,19 @@
+[Unit]
+Description=LLM Server Constrained Action Engine
+After=network-online.target
+
+[Service]
+Type=simple
+User=action-engine
+Group=action-engine
+WorkingDirectory=/opt/llm-server/apps/action-engine
+ExecStart=/opt/llm-server/venv/bin/python -m uvicorn action_engine:app --host 127.0.0.1 --port 5200
+Restart=always
+RestartSec=5
+UMask=0077
+PrivateTmp=true
+ProtectHome=true
+ReadWritePaths=/opt/llm-server/apps/action-engine/data
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,32 @@
+[Unit]
+Description=AI Server Dashboard
+After=network.target
+
+
+[Service]
+
+Type=simple
+
+User=dashboard-agent
+Group=dashboard-agent
+
+WorkingDirectory=/opt/llm-server/apps/dashboard
+
+ExecStart=/opt/llm-server/venv/bin/python app.py
+Environment=DASHBOARD_HOST=100.69.21.124
+
+Restart=always
+
+RestartSec=5
+UMask=0077
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/llm-server/apps/dashboard/data
+
+
+
+[Install]
+
+WantedBy=multi-user.target

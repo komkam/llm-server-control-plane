@@ -1,0 +1,23 @@
+[Unit]
+Description=LangGraph LLM Server Diagnostic Agent
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=llm-agent
+Group=llm-agent
+WorkingDirectory=/opt/llm-server/apps/agent
+ExecStart=/opt/llm-server/apps/agent/.venv/bin/python agent_server.py
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/llm-server/apps/agent/data
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=Constrained Autonomous LLM Server Supervisor
+After=network-online.target router.service agent.service monitor.service dashboard.service ollama.service llama-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=autonomy-agent
+Group=autonomy-agent
+SupplementaryGroups=dashboard-agent
+WorkingDirectory=/opt/llm-server/services
+ExecStart=/opt/llm-server/venv/bin/python /opt/llm-server/services/autonomy.py
+Environment=AUTONOMY_ACTION_MODE=observe
+Restart=always
+RestartSec=10
+UMask=0077
+ProtectHome=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/llm-server/data /opt/llm-server/logs
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,70 @@
+light_model: phi-fast
+
+heavy_model: qwen-engineer
+
+heavy_keywords:
+  - code
+  - coding
+  - program
+  - programming
+  - debug
+  - debugging
+  - troubleshoot
+  - troubleshooting
+  - engineering
+  - engineer
+  - calculate
+  - calculation
+  - linux
+  - ubuntu
+  - docker
+  - kubernetes
+  - server
+  - system
+  - cpu
+  - gpu
+  - ram
+  - memory
+  - disk
+  - nvme
+  - network
+  - networking
+  - python
+  - bash
+  - shell
+  - plc
+  - vfd
+  - inverter
+  - electrical
+  - circuit
+  - hardware
+  - configuration
+  - configure
+  - database
+  - api
+  - error
+  - failure
+  - log
+  - logs
+  - performance
+  - latency
+  - bottleneck
+
+heavy_keywords_th:
+  - เขียนโค้ด
+  - โปรแกรม
+  - ดีบัก
+  - แก้บั๊ก
+  - แก้ปัญหา
+  - เซิร์ฟเวอร์
+  - ระบบ
+  - ลินุกซ์
+  - ด็อกเกอร์
+  - เครือข่าย
+  - ฐานข้อมูล
+  - ประสิทธิภาพ
+  - ความหน่วง
+  - การตั้งค่า
+  - ซีพียู
+  - จีพียู
+  - หน่วยความจำ

@@ -1,0 +1,24 @@
+[Unit]
+Description=AI Server Hardware Monitor
+After=network.target
+
+
+[Service]
+
+Type=simple
+
+User=root
+
+WorkingDirectory=/opt/llm-server/services
+
+ExecStart=/opt/llm-server/venv/bin/python /opt/llm-server/services/monitor.py
+
+Restart=always
+
+RestartSec=5
+
+
+
+[Install]
+
+WantedBy=multi-user.target

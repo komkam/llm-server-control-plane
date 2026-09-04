@@ -1,0 +1,33 @@
+# Secrets and machine-specific settings
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*token*
+
+# Runtime state, audit logs, staged releases, and backups
+data/
+logs/
+staging/
+releases/
+backups/
+**/data/
+**/logs/
+
+# Models, virtual environments, caches, and generated Python files
+venv/
+**/.venv/
+ollama/
+llama.cpp/
+chromadb/
+monitoring/
+**/__pycache__/
+*.py[cod]
+
+# Open WebUI user data
+open-webui/
+
+# Local OS/editor files
+.DS_Store
+*.swp
