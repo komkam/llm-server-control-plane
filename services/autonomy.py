@@ -30,6 +30,9 @@ RESTART_WINDOW_SECONDS = 3600
 POST_RESTART_DELAY_SECONDS = 5
 POST_RESTART_ATTEMPTS = 3
 HTTP_TIMEOUT_SECONDS = 10
+BACKUP_INTERVAL_SECONDS = 24 * 60 * 60
+VERIFY_INTERVAL_SECONDS = 6 * 60 * 60
+MAINTENANCE_FAILURE_RETRY_SECONDS = 60 * 60
 ACTION_MODE = os.environ.get("AUTONOMY_ACTION_MODE", "observe").lower()
 
 # This allowlist is the complete authority of the supervisor.  Do not accept
@@ -141,17 +144,41 @@ def diagnose(service: str, failure: str) -> str | None:
         return f"diagnosis unavailable: {exc}"
 
 
-def restart_allowed_service(service: str) -> tuple[bool, str]:
-    if service not in SERVICES:
-        raise ValueError(f"service is not allowlisted: {service}")
-    payload = json.dumps({"action": "restart_service", "target": service, "reason": "autonomy health check"}).encode()
+def run_safe_action(action: str, target: str | None = None, reason: str = "autonomy") -> tuple[bool, str]:
+    if action not in {"restart_service", "create_backup", "verify_deployment"}:
+        raise ValueError(f"action is not allowlisted: {action}")
+    if action == "restart_service" and target not in SERVICES:
+        raise ValueError(f"service is not allowlisted: {target}")
+    payload = json.dumps({"action": action, "target": target, "reason": reason}).encode()
     request = Request("http://127.0.0.1:5200/v1/actions", data=payload, headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urlopen(request, timeout=90) as response:
+        with urlopen(request, timeout=210) as response:
             result = json.loads(response.read())
     except Exception as exc:
         return False, f"action engine unavailable: {exc}"
     return result.get("state") == "SUCCESS", result.get("detail", "no detail")
+
+
+def scheduled_maintenance(state: dict, current_time: float) -> None:
+    """Run only bounded, reversible maintenance through Action Engine."""
+    if ACTION_MODE != "auto":
+        return
+    maintenance = state.setdefault("maintenance", {})
+    tasks = {
+        "backup": ("create_backup", BACKUP_INTERVAL_SECONDS),
+        "verify": ("verify_deployment", VERIFY_INTERVAL_SECONDS),
+    }
+    for name, (action, interval) in tasks.items():
+        record = maintenance.setdefault(name, {"last_success": 0, "last_attempt": 0})
+        due = current_time - record["last_success"] >= interval
+        retry_allowed = current_time - record["last_attempt"] >= MAINTENANCE_FAILURE_RETRY_SECONDS
+        if not due or not retry_allowed:
+            continue
+        record["last_attempt"] = current_time
+        success, detail = run_safe_action(action, reason=f"scheduled {name} maintenance")
+        if success:
+            record["last_success"] = current_time
+        audit("maintenance_attempted", task=name, action=action, success=success, detail=detail)
 
 
 def restarts_in_window(record: dict, current_time: float) -> int:
@@ -209,10 +236,9 @@ def supervise_once(state: dict | None = None) -> dict:
             continue
 
         diagnosis = diagnose(service, detail)
-        success, restart_detail = restart_allowed_service(service)
+        success, restart_detail = run_safe_action("restart_service", service, "autonomy health check")
         record["last_restart"] = current_time
         record.setdefault("restart_history", []).append(current_time)
-        record["failures"] = 0
         audit(
             "restart_attempted",
             service=service,
@@ -220,7 +246,12 @@ def supervise_once(state: dict | None = None) -> dict:
             detail=restart_detail,
             diagnosis=diagnosis,
         )
+        if success:
+            record["failures"] = 0
+        else:
+            audit("restart_escalated", service=service, failures=record["failures"], detail=restart_detail)
 
+    scheduled_maintenance(state, current_time)
     atomic_write(STATE_FILE, state)
     return state
 

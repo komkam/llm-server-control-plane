@@ -11,6 +11,6 @@ tar -C "${BASE_DIR}" -czf "${DESTINATION}/application.tar.gz" \
   data/autonomy-state.json data/state.json data/history.json \
   logs/autonomy.jsonl
 cp /etc/systemd/system/{agent,autonomy,dashboard,monitor,router}.service "${DESTINATION}/"
-cp /etc/sudoers.d/{autonomy-agent,dashboard-agent} "${DESTINATION}/"
+cp /etc/sudoers.d/action-engine "${DESTINATION}/"
 sha256sum "${DESTINATION}"/* > "${DESTINATION}/SHA256SUMS"
 echo "Backup created: ${DESTINATION}"
