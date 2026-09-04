@@ -53,6 +53,10 @@ class ApprovalRequest(BaseModel):
     reason: str
 
 
+class DeployRequest(BaseModel):
+    release_id: str
+
+
 def load_auth_config():
     with open(AUTH_FILE, "r") as handle:
         return json.load(handle)
@@ -280,6 +284,12 @@ def approvals():
 @app.post("/api/approvals")
 def approve(request: Request, approval: ApprovalRequest):
     payload = json.dumps({"action": "approve_release", "release_id": approval.release_id, "approver": request.session.get("username", "unknown"), "reason": approval.reason}).encode()
+    return action_engine_request(payload)
+
+
+@app.post("/api/deployments")
+def deploy(request: Request, deployment: DeployRequest):
+    payload = json.dumps({"action": "deploy_release", "release_id": deployment.release_id, "reason": f"dashboard deployment approved by {request.session.get('username', 'unknown')}"}).encode()
     return action_engine_request(payload)
 
 
