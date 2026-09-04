@@ -38,6 +38,7 @@ AUTONOMY_STATE_FILE = os.path.join(DATA_DIR, "autonomy-state.json")
 AUTONOMY_AUDIT_LOG = os.path.join(BASE_DIR, "logs", "autonomy.jsonl")
 CONTROL_AUDIT_LOG = os.path.join(BASE_DIR, "apps", "dashboard", "data", "control.jsonl")
 CONTROLLED_SERVICES = {"router", "agent", "dashboard", "ollama", "llama-server", "monitor", "autonomy"}
+HEALTH_CHECK_SERVICES = CONTROLLED_SERVICES | {"open-webui"}
 CONTROLLED_ACTIONS = {"restart_service", "health_check", "create_backup", "verify_deployment"}
 AUTH_FILE = os.path.join(BASE_DIR, "apps", "dashboard", "data", "auth.json")
 
@@ -266,7 +267,9 @@ def control_action_history():
 def control(request: ControlRequest):
     if request.action not in CONTROLLED_ACTIONS:
         raise HTTPException(status_code=400, detail="action is not controllable")
-    if request.action in {"restart_service", "health_check"} and request.service not in CONTROLLED_SERVICES:
+    if request.action == "restart_service" and request.service not in CONTROLLED_SERVICES:
+        raise HTTPException(status_code=400, detail="service is not restartable")
+    if request.action == "health_check" and request.service not in HEALTH_CHECK_SERVICES:
         raise HTTPException(status_code=400, detail="service is not controllable")
     payload = json.dumps({"action": request.action, "target": request.service, "reason": "dashboard control panel"}).encode()
     data = action_engine_request(payload)

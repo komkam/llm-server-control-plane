@@ -22,9 +22,11 @@ SERVICES = {
     "dashboard": "http://100.69.21.124:7000/api/health",
     "ollama": "http://127.0.0.1:11434/api/tags",
     "llama-server": "http://127.0.0.1:8082/health",
+    "open-webui": "http://127.0.0.1:3000/",
     "monitor": None,
     "autonomy": None,
 }
+NON_SYSTEMD_SERVICES = {"open-webui"}
 LOCK = Lock()
 app = FastAPI(title="LLM Server Action Engine")
 
@@ -57,9 +59,10 @@ def recent_actions(limit: int):
 
 
 def healthy(service):
-    active = subprocess.run(["systemctl", "is-active", service], capture_output=True, text=True, timeout=10)
-    if active.stdout.strip() != "active":
-        return False, active.stdout.strip() or active.stderr.strip()
+    if service not in NON_SYSTEMD_SERVICES:
+        active = subprocess.run(["systemctl", "is-active", service], capture_output=True, text=True, timeout=10)
+        if active.stdout.strip() != "active":
+            return False, active.stdout.strip() or active.stderr.strip()
     endpoint = SERVICES[service]
     if endpoint is None:
         return True, "systemd active"
@@ -79,8 +82,10 @@ def execute(request: ActionRequest):
     action_id = uuid.uuid4().hex
     if request.action not in {"restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "deploy_release", "rollback_release"}:
         raise HTTPException(400, "action is not allowed")
-    if request.action in {"restart_service", "health_check"} and request.target not in SERVICES:
-        raise HTTPException(400, "target is not allowed")
+        if request.action in {"restart_service", "health_check"} and request.target not in SERVICES:
+            raise HTTPException(400, "target is not allowed")
+        if request.action == "restart_service" and request.target in NON_SYSTEMD_SERVICES:
+            raise HTTPException(400, "target supports health checks only")
     with LOCK:
         audit(id=action_id, state="REQUESTED", action=request.action, target=request.target, reason=request.reason)
         if request.action == "health_check":
