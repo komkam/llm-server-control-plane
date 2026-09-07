@@ -1,0 +1,16 @@
+[Unit]
+Description=Codex CLI App Server Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+ExecStart=/root/.local/bin/codex remote-control start
+ExecStop=/root/.local/bin/codex remote-control stop
+TimeoutStartSec=90
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
