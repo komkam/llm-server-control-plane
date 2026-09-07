@@ -5,7 +5,7 @@ BASE=/opt/llm-server
 DEPLOY="$BASE/deploy/.openwebui-image.env"
 OUT="$BASE/data/image-update-proposals"
 IMAGE=ghcr.io/open-webui/open-webui:main
-install -d -m 0750 "$OUT"
+install -d -m 0750 -o action-engine -g action-engine "$OUT"
 
 current=$(grep '^OPENWEBUI_IMAGE=' "$DEPLOY" 2>/dev/null | cut -d= -f2- || /usr/bin/docker inspect --format '{{.Image}}' open-webui)
 manifest=$(/usr/bin/docker manifest inspect "$IMAGE")

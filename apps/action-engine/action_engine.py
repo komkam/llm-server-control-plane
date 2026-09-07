@@ -99,6 +99,29 @@ def releases():
     return inventory
 
 
+def image_update_proposals():
+    directory = f"{BASE_DIR}/image-updates"
+    proposals = []
+    try:
+        names = sorted(os.listdir(directory), reverse=True)
+    except OSError:
+        return proposals
+    for name in names:
+        candidate = os.path.join(directory, name)
+        try:
+            with open(os.path.join(candidate, "manifest.json")) as handle:
+                item = json.load(handle)
+            with open(os.path.join(candidate, "status")) as handle:
+                item["state"] = handle.read().strip()
+            item["type"] = "docker_image"
+            item["risk"] = "MEDIUM"
+            item["evidence"] = f"{item.get('previous_image', 'unknown')} → {item.get('image', 'unknown')}"
+            proposals.append(item)
+        except (OSError, json.JSONDecodeError):
+            continue
+    return proposals
+
+
 def execute(request: ActionRequest):
     action_id = uuid.uuid4().hex
     if request.action not in {"restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "build_candidate", "prepare_openwebui_image", "approve_openwebui_image", "deploy_openwebui_image", "approve_release", "deploy_release", "rollback_release"}:
@@ -186,6 +209,15 @@ def deployment_timeline():
             grouped[latest]["events"].append(entry)
             grouped[latest].update({key: value for key, value in entry.items() if key != "events"})
     return {"deployments": list(grouped.values())[-30:]}
+
+
+@app.get("/v1/proposals")
+def proposal_queue():
+    proposals = image_update_proposals()
+    for release in releases():
+        if release["status"] in {"PENDING", "APPROVED"}:
+            proposals.append({"id": release["id"], "type": "release_candidate", "state": release["status"], "risk": "MEDIUM", "evidence": release["manifest"], "checksum": release["checksum"], "next": "approve then deploy" if release["status"] == "PENDING" else "approved; deploy available"})
+    return {"proposals": proposals}
 
 
 @app.get("/v1/releases")

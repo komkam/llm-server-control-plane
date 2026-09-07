@@ -290,6 +290,19 @@ def deployments():
         raise HTTPException(status_code=502, detail=f"deployment timeline unavailable: {exc}") from exc
 
 
+@app.get("/api/proposals")
+def proposal_queue():
+    try:
+        with urlopen("http://127.0.0.1:5200/v1/proposals", timeout=10) as result:
+            payload = json.loads(result.read())
+    except (URLError, OSError) as exc:
+        raise HTTPException(status_code=502, detail=f"proposal queue unavailable: {exc}") from exc
+    for event in incidents(limit=40):
+        if event.get("event") == "restart_requires_approval":
+            payload["proposals"].append({"id": f"incident-{event.get('time')}", "type": "health_incident", "state": "PROPOSED", "risk": "MEDIUM", "evidence": event.get("detail", event.get("service", "health check failed")), "next": "review service recovery"})
+    return JSONResponse(content=payload)
+
+
 @app.post("/api/approvals")
 def approve(request: Request, approval: ApprovalRequest):
     payload = json.dumps({"action": "approve_release", "release_id": approval.release_id, "approver": request.session.get("username", "unknown"), "reason": approval.reason}).encode()
