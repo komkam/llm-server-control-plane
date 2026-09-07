@@ -1,0 +1,132 @@
+name: llm-observability
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --storage.tsdb.retention.size=24GB
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ../config/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../data/observability/prometheus:/prometheus
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks: [observability]
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    restart: unless-stopped
+    depends_on: [prometheus, loki, tempo]
+    environment:
+      GF_SERVER_ROOT_URL: http://127.0.0.1:3100
+      GF_SECURITY_ADMIN_USER: control-plane
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+    ports:
+      - "127.0.0.1:3100:3000"
+    volumes:
+      - ../data/observability/grafana:/var/lib/grafana
+      - ../config/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../config/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ../config/observability/secrets/grafana_admin_password:/run/secrets/grafana_admin_password:ro
+    networks: [observability]
+
+  loki:
+    image: grafana/loki:3.7.7
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ../config/observability/loki/loki.yml:/etc/loki/config.yml:ro
+      - ../data/observability/loki:/loki
+    networks: [observability]
+
+  alloy:
+    image: grafana/alloy:v1.19.2
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ../config/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ../data/observability/alloy:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - ../logs:/var/opt/llm-server/logs:ro
+      - ../apps/action-engine/data:/var/opt/llm-server/action-engine:ro
+      - ../data/falco:/var/opt/llm-server/falco:ro
+    networks: [observability]
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    volumes:
+      - /:/host:ro,rslave
+    networks: [observability]
+
+  tempo:
+    image: grafana/tempo:3.0.2
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ../config/observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - ../data/observability/tempo:/var/tempo
+    networks: [observability]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    restart: unless-stopped
+    depends_on: [tempo]
+    command: ["--config=/etc/otelcol/config.yml"]
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - ../config/observability/otel-collector.yml:/etc/otelcol/config.yml:ro
+    networks: [observability]
+
+  falco:
+    image: falcosecurity/falco:0.44.1
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [SYS_ADMIN, SYS_RESOURCE, SYS_PTRACE]
+    security_opt:
+      - apparmor:unconfined
+    command:
+      - falco
+      - -o
+      - engine.kind=modern_ebpf
+      - -o
+      - json_output=true
+      - -o
+      - file_output.enabled=true
+      - -o
+      - file_output.filename=/var/opt/llm-server/events.jsonl
+      - -r
+      - /etc/falco/rules.d
+    volumes:
+      - /sys/kernel/tracing:/sys/kernel/tracing:ro
+      - /var/run/docker.sock:/host/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /etc:/host/etc:ro
+      - ../config/falco/rules.d:/etc/falco/rules.d:ro
+      - ../data/falco:/var/opt/llm-server
+    networks: [observability]
+
+networks:
+  observability:
+    driver: bridge

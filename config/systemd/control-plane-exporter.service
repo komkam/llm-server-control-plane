@@ -1,0 +1,21 @@
+[Unit]
+Description=LLM Server Control Plane Prometheus Exporter
+After=network-online.target action-engine.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Environment=METRICS_HOST=172.17.0.1
+Environment=METRICS_PORT=9400
+ExecStart=/opt/llm-server/venv/bin/python /opt/llm-server/services/control_plane_exporter.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/llm-server
+
+[Install]
+WantedBy=multi-user.target

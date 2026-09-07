@@ -190,7 +190,7 @@ async def dashboard(request: Request):
 
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
+        name="control.html",
         context={}
     )
 
@@ -245,6 +245,16 @@ def api_overview():
     })
 
 
+@app.get("/api/observability")
+def api_observability():
+    try:
+        with urlopen("http://127.0.0.1:9090/api/v1/query?query=up", timeout=3) as response:
+            samples = json.loads(response.read())["data"]["result"]
+        collectors = sum(1 for item in samples if item.get("value", ["", "0"])[1] == "1")
+        return {"available": True, "collectors_up": collectors, "managed_services_up": collectors, "pending_proposals": len([r for r in releases() if r.get("status") == "PENDING"]), "offsite_backup": {"state": "not configured"}}
+    except Exception:
+        return {"available": False, "collectors_up": 0, "managed_services_up": 0, "pending_proposals": 0, "offsite_backup": {"state": "not configured"}}
+
 @app.get("/api/incidents")
 def api_incidents(service: str | None = Query(default=None), limit: int = Query(default=100, ge=1, le=500)):
     events = incidents(service, limit)
@@ -288,19 +298,6 @@ def deployments():
             return JSONResponse(content=json.loads(result.read()))
     except (URLError, OSError) as exc:
         raise HTTPException(status_code=502, detail=f"deployment timeline unavailable: {exc}") from exc
-
-
-@app.get("/api/proposals")
-def proposal_queue():
-    try:
-        with urlopen("http://127.0.0.1:5200/v1/proposals", timeout=10) as result:
-            payload = json.loads(result.read())
-    except (URLError, OSError) as exc:
-        raise HTTPException(status_code=502, detail=f"proposal queue unavailable: {exc}") from exc
-    for event in incidents(limit=40):
-        if event.get("event") == "restart_requires_approval":
-            payload["proposals"].append({"id": f"incident-{event.get('time')}", "type": "health_incident", "state": "PROPOSED", "risk": "MEDIUM", "evidence": event.get("detail", event.get("service", "health check failed")), "next": "review service recovery"})
-    return JSONResponse(content=payload)
 
 
 @app.post("/api/approvals")

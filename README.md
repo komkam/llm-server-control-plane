@@ -1,7 +1,8 @@
 # LLM Server Control Plane
 
-A private, Tailscale-accessible local LLM platform with controlled operations,
-observability, and an approval-gated deployment workflow.
+A portable local LLM platform with controlled operations, observability, and an
+approval-gated deployment workflow. Network exposure is configured locally;
+this repository contains no device- or tailnet-specific address.
 
 ## Current architecture
 
@@ -24,15 +25,30 @@ Observability
   -> node-exporter, GPU exporter, Docker exporter, Falco
 ```
 
-## Private access
+## Install and private access
 
-Services are intended for a private tailnet. Tailscale Serve terminates HTTPS:
+Install from a checked-out repository as root:
 
-| Service | Address |
+```bash
+sudo ./install.sh
+sudoedit /etc/llm-server/runtime.env
+```
+
+The installer copies service definitions and creates the local runtime file. It
+does not start services or configure public exposure. Set the hostname, access
+policy, and TLS/Tailscale Serve rules on the machine where it is installed.
+
+Only the ports are fixed by the bundled configuration:
+
+| Service | Private listener / HTTPS port |
 | --- | --- |
-| Grafana monitoring | `https://llm-server.tail7732db.ts.net:8443/` |
-| Control Panel | `https://llm-server.tail7732db.ts.net:8444/` |
-| Open WebUI | Tailscale Serve root route |
+| Open WebUI | `3000` / `443` |
+| Grafana monitoring | `3100` / `8443` |
+| Control Panel | `7000` / `8444` |
+| Prometheus | `9090` |
+
+For a private Tailscale installation, point Serve at the loopback listeners;
+the external tailnet hostname is deliberately not stored in this project.
 
 Do not commit passwords, API keys, Tailscale auth keys, or backup credentials.
 
@@ -86,7 +102,7 @@ docker compose -f deploy/observability.compose.yaml ps
 Local release snapshots are created by the deployment pipeline. Restic, SOPS,
 and age configuration are present, but offsite backup requires a separately
 configured repository and credentials. Keep encrypted secrets outside Git and
-use `config/secrets/README.md` as the local setup guide.
+use `config/secrets/README.md` as the local setup guide. Copy `config/runtime.env.example` to a machine-local runtime file; it is deliberately ignored by Git.
 
 ## Repository layout
 

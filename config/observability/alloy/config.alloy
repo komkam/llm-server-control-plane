@@ -1,0 +1,61 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+discovery.docker "local" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.local.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.local.targets
+  labels        = { source = "docker", environment = "production" }
+  relabel_rules = discovery.relabel.docker_logs.rules
+  forward_to    = [loki.write.local.receiver]
+}
+
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "systemd" {
+  forward_to    = [loki.write.local.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { source = "journal", environment = "production" }
+  max_age       = "1h"
+}
+
+local.file_match "control_plane" {
+  path_targets = [
+    { __path__ = "/var/opt/llm-server/logs/*.jsonl", source = "control_plane" },
+    { __path__ = "/var/opt/llm-server/action-engine/*.jsonl", source = "action_engine" },
+    { __path__ = "/var/opt/llm-server/falco/*.jsonl", source = "falco" },
+  ]
+}
+
+loki.source.file "control_plane" {
+  targets    = local.file_match.control_plane.targets
+  forward_to = [loki.write.local.receiver]
+}

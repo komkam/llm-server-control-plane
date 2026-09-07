@@ -1,0 +1,13 @@
+- rule: LLM Server Container Shell
+  desc: A shell was started inside a container
+  condition: container and spawned_process and proc.name in (bash, sh, zsh, dash, ash)
+  output: Shell started in container (user=%user.name container=%container.name image=%container.image.repository process=%proc.cmdline)
+  priority: WARNING
+  tags: [container, shell, llm_server]
+
+- rule: LLM Server Container Writes Sensitive Host Path
+  desc: A container attempted to write a sensitive host path
+  condition: container and evt.type in (open, openat, openat2, creat) and evt.is_open_write=true and fd.name startswith /etc/
+  output: Container wrote sensitive path (user=%user.name container=%container.name image=%container.image.repository file=%fd.name process=%proc.cmdline)
+  priority: CRITICAL
+  tags: [container, filesystem, llm_server]

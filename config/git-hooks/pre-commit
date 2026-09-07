@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT=$(git rev-parse --show-toplevel)
+exec /usr/bin/docker run --rm --network none \
+  -v "$ROOT:/repo:ro" \
+  -w /repo \
+  zricethezav/gitleaks:v8.30.0 dir --redact /repo

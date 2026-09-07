@@ -1,0 +1,13 @@
+[Unit]
+Description=Encrypted offsite LLM Server backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/llm-server/scripts/restic_backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=6h

@@ -1,0 +1,20 @@
+[Unit]
+Description=LLM Server NVIDIA Prometheus Exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Environment=METRICS_HOST=172.17.0.1
+Environment=METRICS_PORT=9401
+ExecStart=/opt/llm-server/venv/bin/python /opt/llm-server/services/gpu_exporter.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

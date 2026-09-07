@@ -40,9 +40,10 @@ ACTION_MODE = os.environ.get("AUTONOMY_ACTION_MODE", "observe").lower()
 SERVICES = {
     "router": "http://127.0.0.1:5000/health",
     "agent": "http://127.0.0.1:5100/health",
-    "dashboard": "http://100.69.21.124:7000/api/health",
+    "dashboard": os.environ.get("DASHBOARD_HEALTH_URL", "http://127.0.0.1:7000/api/health"),
     "ollama": "http://127.0.0.1:11434/api/tags",
     "llama-server": "http://127.0.0.1:8082/health",
+    "observability": "http://127.0.0.1:9090/-/ready",
     "monitor": None,
 }
 

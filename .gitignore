@@ -5,6 +5,11 @@
 *.key
 *.pem
 *token*
+/config/observability/secrets/
+/config/restic/backup.env
+/config/restic/password
+/config/restic/id_*
+/config/runtime.env
 
 # Runtime state, audit logs, staged releases, and backups
 data/
@@ -31,3 +36,11 @@ open-webui/
 # Local OS/editor files
 .DS_Store
 *.swp
+
+# Host-specific security and update state
+/.sops.yaml
+/config/secrets/*
+!/config/secrets/README.md
+/config/security/
+/deploy/.openwebui-image.env
+/image-updates/

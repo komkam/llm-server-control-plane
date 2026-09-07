@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE_DIR=/opt/llm-server
-TAILSCALE_IP=100.69.21.124
+DASHBOARD_HEALTH_URL=${DASHBOARD_HEALTH_URL:-http://127.0.0.1:7000/api/health}
 SERVICES=(ollama llama-server monitor router agent dashboard autonomy)
 
 wait_for_http() {
@@ -41,6 +41,6 @@ visudo -cf /etc/sudoers.d/action-engine
 
 wait_for_http http://127.0.0.1:5100/health
 wait_for_http http://127.0.0.1:5000/health
-wait_for_http "http://${TAILSCALE_IP}:7000/api/health"
+wait_for_http "${DASHBOARD_HEALTH_URL}"
 
 echo "Verification passed"

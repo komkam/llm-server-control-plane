@@ -1,0 +1,22 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "refresh": "5s",
+  "panels": [
+    {"type":"stat","title":"Observability containers","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"count(llm_docker_container_cpu_percent{container=~\"llm-observability-.*\"})","refId":"A"}],"gridPos":{"h":7,"w":6,"x":0,"y":17}},
+    {"type":"stat","title":"Open WebUI containers","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"count(llm_docker_container_cpu_percent{container=\"open-webui\"})","refId":"A"}],"gridPos":{"h":7,"w":6,"x":6,"y":17}},
+    {"type":"stat","title":"Pending proposals","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"sum(llm_control_proposals{state=\"PENDING\"}) or vector(0)","refId":"A"}],"gridPos":{"h":7,"w":6,"x":12,"y":17}},
+    {"type":"stat","title":"Docker exporter","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"llm_docker_exporter_up","refId":"A"}],"gridPos":{"h":7,"w":6,"x":18,"y":17}},
+    {"type":"stat","title":"CPU","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[15s])) * 100)","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent","decimals":1},"overrides":[]},"gridPos":{"h":7,"w":6,"x":0,"y":0}},
+    {"type":"stat","title":"Memory used","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent","decimals":1},"overrides":[]},"gridPos":{"h":7,"w":6,"x":6,"y":0}},
+    {"type":"stat","title":"Root disk used","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"100 * (1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})","refId":"A"}],"fieldConfig":{"defaults":{"unit":"percent","decimals":1},"overrides":[]},"gridPos":{"h":7,"w":6,"x":12,"y":0}},
+    {"type":"stat","title":"Services up","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"sum(llm_control_service_up)","refId":"A"}],"gridPos":{"h":7,"w":6,"x":18,"y":0}},
+    {"type":"timeseries","title":"GPU utilization / VRAM","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"llm_gpu_utilization_percent","legendFormat":"GPU %","refId":"A"},{"expr":"100 * llm_gpu_memory_used_bytes / llm_gpu_memory_total_bytes","legendFormat":"VRAM %","refId":"B"}],"gridPos":{"h":10,"w":12,"x":0,"y":7}},
+    {"type":"timeseries","title":"Container CPU","datasource":{"type":"prometheus","uid":"Prometheus"},"targets":[{"expr":"sum by (container) (llm_docker_container_cpu_percent)","legendFormat":"{{container}}","refId":"A"}],"gridPos":{"h":10,"w":12,"x":12,"y":7}}
+  ],
+  "schemaVersion": 41,
+  "tags": ["llm-server", "control-plane"],
+  "title": "LLM Server Control Plane",
+  "uid": "llm-control-plane",
+  "version": 1
+}

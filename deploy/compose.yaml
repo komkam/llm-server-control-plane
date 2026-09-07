@@ -1,6 +1,6 @@
 services:
   open-webui:
-    image: ${OPENWEBUI_IMAGE:-ghcr.io/open-webui/open-webui:main}
+    image: llm-server/open-webui:security-patched
     container_name: open-webui
     restart: unless-stopped
 

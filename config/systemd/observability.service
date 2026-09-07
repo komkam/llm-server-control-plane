@@ -1,0 +1,18 @@
+[Unit]
+Description=LLM Server Observability Stack
+After=docker.service network-online.target control-plane-exporter.service gpu-exporter.service docker-exporter.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+ExecStartPre=/opt/llm-server/scripts/prepare_observability.sh
+ExecStart=/usr/bin/docker compose -f /opt/llm-server/deploy/observability.compose.yaml up -d
+ExecStop=/usr/bin/docker compose -f /opt/llm-server/deploy/observability.compose.yaml stop
+TimeoutStartSec=20min
+TimeoutStopSec=2min
+
+[Install]
+WantedBy=multi-user.target

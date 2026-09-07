@@ -5,22 +5,35 @@ BASE=/opt/llm-server
 DEPLOY_DIR="$BASE/deploy"
 ENV_FILE="$DEPLOY_DIR/.openwebui-image.env"
 UPDATE_DIR="$BASE/image-updates"
-IMAGE=ghcr.io/open-webui/open-webui:main
-COMPOSE=(/usr/bin/docker compose --env-file "$ENV_FILE" -f "$DEPLOY_DIR/compose.yaml")
+IMAGE=llm-server/open-webui:security-patched
+TRIVY_IMAGE=aquasec/trivy:0.68.2
+COMPOSE=(/usr/bin/docker compose --project-name llm-server --env-file "$ENV_FILE" -f "$DEPLOY_DIR/compose.yaml")
 
 candidate_dir(){ printf '%s/%s' "$UPDATE_DIR" "$1"; }
 state(){ cat "$(candidate_dir "$1")/status" 2>/dev/null || true; }
-wait_for_webui(){ local attempt; for ((attempt=1; attempt<=15; attempt++)); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
-current_image(){ grep '^OPENWEBUI_IMAGE=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || /usr/bin/docker inspect --format '{{.Image}}' open-webui; }
+wait_for_webui(){ local attempt; for ((attempt=1; attempt<=30; attempt++)); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
+current_image(){ grep '^OPENWEBUI_IMAGE=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || /usr/bin/docker inspect --format '{{.Config.Image}}' open-webui; }
+
+scan_image(){
+  local archive=$1 report=$2
+  /usr/bin/docker save -o "$archive" "$IMAGE"
+  /usr/bin/docker run --rm -v "$archive:/image.tar:ro" -v "$(dirname "$report"):/artifacts" -v "$BASE/data/trivy-cache:/root/.cache" "$TRIVY_IMAGE" image --input /image.tar --severity HIGH,CRITICAL --ignore-unfixed --format json --output "/artifacts/$(basename "$report")"
+  /usr/bin/docker run --rm -v "$archive:/image.tar:ro" -v "$BASE/data/trivy-cache:/root/.cache" "$TRIVY_IMAGE" image --input /image.tar --severity CRITICAL --ignore-unfixed --exit-code 1
+}
 
 prepare(){
-  local id=$1 dir previous resolved
+  local id=$1 dir previous
   dir=$(candidate_dir "$id"); test ! -e "$dir"; install -d -m 0750 "$dir"
   previous=$(current_image)
-  /usr/bin/docker pull "$IMAGE" >/dev/null
-  resolved=$(/usr/bin/docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')
-  test -n "$resolved" && test "$resolved" != "<no value>"
-  printf '{"id":"%s","image":"%s","previous_image":"%s","created_at":"%s"}\n' "$id" "$resolved" "$previous" "$(date -u +%FT%TZ)" > "$dir/manifest.json"
+  /usr/bin/docker build --pull --tag "$IMAGE" -f "$DEPLOY_DIR/openwebui-patched/Dockerfile" "$DEPLOY_DIR/openwebui-patched"
+  if ! scan_image "$dir/image.tar" "$dir/trivy.json"; then
+    printf '{"decision":"REJECT","reason":"critical image vulnerability","image":"%s"}\n' "$IMAGE" > "$dir/security.json"
+    echo REJECTED > "$dir/status"
+    return 1
+  fi
+  /usr/bin/docker run --rm --entrypoint python "$IMAGE" -c 'import nltk; assert nltk.__version__ == "3.10.3"'
+  printf '{"id":"%s","image":"%s","previous_image":"%s","created_at":"%s","security":"passed"}\n' "$id" "$IMAGE" "$previous" "$(date -u +%FT%TZ)" > "$dir/manifest.json"
+  printf '{"decision":"ALLOW","scanner":"trivy","critical":0}\n' > "$dir/security.json"
   echo PENDING > "$dir/status"
   echo "$id"
 }

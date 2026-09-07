@@ -20,10 +20,11 @@ AUDIT_LOG = f"{DATA_DIR}/actions.jsonl"
 SERVICES = {
     "router": "http://127.0.0.1:5000/health",
     "agent": "http://127.0.0.1:5100/health",
-    "dashboard": "http://100.69.21.124:7000/api/health",
+    "dashboard": os.environ.get("DASHBOARD_HEALTH_URL", "http://127.0.0.1:7000/api/health"),
     "ollama": "http://127.0.0.1:11434/api/tags",
     "llama-server": "http://127.0.0.1:8082/health",
     "open-webui": "http://127.0.0.1:3000/",
+    "observability": "http://127.0.0.1:9090/-/ready",
     "monitor": None,
     "autonomy": None,
 }
@@ -99,41 +100,18 @@ def releases():
     return inventory
 
 
-def image_update_proposals():
-    directory = f"{BASE_DIR}/image-updates"
-    proposals = []
-    try:
-        names = sorted(os.listdir(directory), reverse=True)
-    except OSError:
-        return proposals
-    for name in names:
-        candidate = os.path.join(directory, name)
-        try:
-            with open(os.path.join(candidate, "manifest.json")) as handle:
-                item = json.load(handle)
-            with open(os.path.join(candidate, "status")) as handle:
-                item["state"] = handle.read().strip()
-            item["type"] = "docker_image"
-            item["risk"] = "MEDIUM"
-            item["evidence"] = f"{item.get('previous_image', 'unknown')} → {item.get('image', 'unknown')}"
-            proposals.append(item)
-        except (OSError, json.JSONDecodeError):
-            continue
-    return proposals
-
-
 def execute(request: ActionRequest):
     action_id = uuid.uuid4().hex
-    if request.action not in {"restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "build_candidate", "prepare_openwebui_image", "approve_openwebui_image", "deploy_openwebui_image", "approve_release", "deploy_release", "rollback_release"}:
+    if request.action not in {"restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "build_candidate", "approve_release", "deploy_release", "rollback_release"}:
         raise HTTPException(400, "action is not allowed")
     if request.action in {"restart_service", "health_check"} and request.target not in SERVICES:
         raise HTTPException(400, "target is not allowed")
     if request.action == "restart_service" and request.target in NON_SYSTEMD_SERVICES:
         raise HTTPException(400, "target supports health checks only")
-    if request.action in {"build_candidate", "approve_release", "deploy_release", "prepare_openwebui_image", "approve_openwebui_image", "deploy_openwebui_image"}:
+    if request.action in {"build_candidate", "approve_release", "deploy_release"}:
         if not request.release_id or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,80}", request.release_id):
             raise HTTPException(400, "invalid release id")
-    if request.action in {"approve_release", "approve_openwebui_image"}:
+    if request.action == "approve_release":
         if not request.approver or not request.reason or "\n" in request.reason or len(request.reason) > 240:
             raise HTTPException(400, "approver and a short single-line reason are required")
     with LOCK:
@@ -159,14 +137,6 @@ def execute(request: ActionRequest):
             return {"id": action_id, "state": "ESCALATED", "detail": detail}
         if request.action == "build_candidate":
             ok, detail = run(["/usr/bin/sudo", "-n", f"{BASE_DIR}/scripts/candidate_builder.sh", request.release_id], 300)
-        elif request.action in {"prepare_openwebui_image", "approve_openwebui_image", "deploy_openwebui_image"}:
-            subcommand = {"prepare_openwebui_image": "prepare", "approve_openwebui_image": "approve", "deploy_openwebui_image": "deploy"}[request.action]
-            command = ["/usr/bin/sudo", "-n", f"{BASE_DIR}/scripts/openwebui_image_update.sh", subcommand, request.release_id]
-            if request.action == "prepare_openwebui_image":
-                pass
-            elif request.action == "approve_openwebui_image":
-                command.extend([request.approver, request.reason])
-            ok, detail = run(command, 600)
         elif request.action in {"create_release", "approve_release", "deploy_release", "rollback_release"}:
             command = ["/usr/bin/sudo", "-n", f"{BASE_DIR}/scripts/release.sh", request.action.removesuffix("_release")]
             if request.action == "create_release":
@@ -187,7 +157,7 @@ def execute(request: ActionRequest):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "actions": ["restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "build_candidate", "prepare_openwebui_image", "approve_openwebui_image", "deploy_openwebui_image", "approve_release", "deploy_release", "rollback_release"]}
+    return {"status": "ok", "actions": ["restart_service", "health_check", "create_backup", "verify_deployment", "create_release", "build_candidate", "approve_release", "deploy_release", "rollback_release"]}
 
 
 @app.get("/v1/deployments")
@@ -209,15 +179,6 @@ def deployment_timeline():
             grouped[latest]["events"].append(entry)
             grouped[latest].update({key: value for key, value in entry.items() if key != "events"})
     return {"deployments": list(grouped.values())[-30:]}
-
-
-@app.get("/v1/proposals")
-def proposal_queue():
-    proposals = image_update_proposals()
-    for release in releases():
-        if release["status"] in {"PENDING", "APPROVED"}:
-            proposals.append({"id": release["id"], "type": "release_candidate", "state": release["status"], "risk": "MEDIUM", "evidence": release["manifest"], "checksum": release["checksum"], "next": "approve then deploy" if release["status"] == "PENDING" else "approved; deploy available"})
-    return {"proposals": proposals}
 
 
 @app.get("/v1/releases")
