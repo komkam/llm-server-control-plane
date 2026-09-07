@@ -18,6 +18,7 @@ Environment=DASHBOARD_HOST=100.69.21.124
 Restart=always
 
 RestartSec=5
+TimeoutStopSec=20s
 UMask=0077
 NoNewPrivileges=false
 PrivateTmp=true

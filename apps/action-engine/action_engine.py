@@ -76,8 +76,13 @@ def healthy(service):
 
 
 def run(command, timeout):
-    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
-    return result.returncode == 0, result.stdout.strip() or result.stderr.strip()
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        output = "\n".join(part for part in ((exc.stdout or "").strip(), (exc.stderr or "").strip()) if part)
+        return False, output or f"command timed out after {timeout} seconds"
+    output = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
+    return result.returncode == 0, output or f"command exited with status {result.returncode}"
 
 
 def releases():
@@ -123,6 +128,8 @@ def execute(request: ActionRequest):
             return {"id": action_id, "state": "ESCALATED", "detail": detail}
         if request.action in {"create_release", "approve_release", "deploy_release", "rollback_release"}:
             command = ["/usr/bin/sudo", "-n", f"{BASE_DIR}/scripts/release.sh", request.action.removesuffix("_release")]
+            if request.action == "create_release":
+                command.append(f"baseline-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{action_id[:8]}")
             if request.action == "approve_release":
                 command.extend([request.release_id, request.approver, request.reason])
             if request.action == "deploy_release":
