@@ -9,11 +9,20 @@ wait_for_http() {
   local url=$1 attempts=${2:-15}
   local attempt
   for ((attempt = 1; attempt <= attempts; attempt++)); do
-    curl --fail --silent --show-error "$url" >/dev/null && return 0
+    curl --fail --silent "$url" >/dev/null 2>&1 && return 0
     sleep 2
   done
   echo "health endpoint did not become ready: $url" >&2
   return 1
+}
+
+verify_units() {
+  local output
+  if ! output=$(systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,monitor,router}.service 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+  printf '%s\n' "$output" | grep -v 'Support for option CPUAccounting= has been removed and it is ignored' >&2 || true
 }
 
 for service in "${SERVICES[@]}"; do
@@ -27,7 +36,7 @@ done
 "${BASE_DIR}/apps/agent/.venv/bin/python" -m py_compile \
   "${BASE_DIR}/apps/agent/agent_server.py"
 
-systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,monitor,router}.service
+verify_units
 visudo -cf /etc/sudoers.d/action-engine
 
 wait_for_http http://127.0.0.1:5100/health
