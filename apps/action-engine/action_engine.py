@@ -89,7 +89,14 @@ def releases():
     ok, output = run(["/usr/bin/sudo", "-n", f"{BASE_DIR}/scripts/release.sh", "list"], 30)
     if not ok:
         raise HTTPException(502, f"release inventory unavailable: {output}")
-    return [{"id": p[0], "status": p[1], "checksum": p[2], "manifest": p[3], "approval_id": p[4]} for line in output.splitlines() if len((p := line.split("\t"))) == 5]
+    inventory = []
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) == 4:
+            fields.append("")
+        if len(fields) == 5:
+            inventory.append({"id": fields[0], "status": fields[1], "checksum": fields[2], "manifest": fields[3], "approval_id": fields[4]})
+    return inventory
 
 
 def execute(request: ActionRequest):
