@@ -1,0 +1,9 @@
+[Unit]
+Description=Observe-only Open WebUI image update check
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/llm-server/scripts/openwebui_image_check.sh
