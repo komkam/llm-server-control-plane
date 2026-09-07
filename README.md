@@ -31,6 +31,7 @@ Install from a checked-out repository as root:
 
 ```bash
 sudo ./install.sh
+docker compose up -d
 sudoedit /etc/llm-server/runtime.env
 ```
 

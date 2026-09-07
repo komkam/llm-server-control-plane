@@ -20,6 +20,7 @@ The installer creates a random local Grafana password file when it is absent; re
 ```bash
 cd /opt/llm-server
 sudo ./install.sh
+docker compose up -d
 sudoedit /etc/llm-server/runtime.env
 ```
 

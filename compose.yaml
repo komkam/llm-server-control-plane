@@ -1,0 +1,8 @@
+# Start the complete local stack from the project root:
+#   docker compose up -d
+# Services remain loopback-only; expose HTTPS with your own private proxy.
+name: llm-server
+
+include:
+  - path: ./deploy/compose.yaml
+  - path: ./deploy/observability.compose.yaml
