@@ -5,6 +5,17 @@ BASE_DIR=/opt/llm-server
 TAILSCALE_IP=100.69.21.124
 SERVICES=(ollama llama-server monitor router agent dashboard autonomy)
 
+wait_for_http() {
+  local url=$1 attempts=${2:-15}
+  local attempt
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    curl --fail --silent --show-error "$url" >/dev/null && return 0
+    sleep 2
+  done
+  echo "health endpoint did not become ready: $url" >&2
+  return 1
+}
+
 for service in "${SERVICES[@]}"; do
   systemctl is-active --quiet "${service}.service"
 done
@@ -19,8 +30,8 @@ done
 systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,monitor,router}.service
 visudo -cf /etc/sudoers.d/action-engine
 
-curl --fail --silent --show-error http://127.0.0.1:5100/health >/dev/null
-curl --fail --silent --show-error http://127.0.0.1:5000/health >/dev/null
-curl --fail --silent --show-error "http://${TAILSCALE_IP}:7000/api/health" >/dev/null
+wait_for_http http://127.0.0.1:5100/health
+wait_for_http http://127.0.0.1:5000/health
+wait_for_http "http://${TAILSCALE_IP}:7000/api/health"
 
 echo "Verification passed"
