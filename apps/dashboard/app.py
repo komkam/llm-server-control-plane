@@ -281,6 +281,15 @@ def approvals():
         raise HTTPException(status_code=502, detail=f"release inventory unavailable: {exc}") from exc
 
 
+@app.get("/api/deployments")
+def deployments():
+    try:
+        with urlopen("http://127.0.0.1:5200/v1/deployments", timeout=10) as result:
+            return JSONResponse(content=json.loads(result.read()))
+    except (URLError, OSError) as exc:
+        raise HTTPException(status_code=502, detail=f"deployment timeline unavailable: {exc}") from exc
+
+
 @app.post("/api/approvals")
 def approve(request: Request, approval: ApprovalRequest):
     payload = json.dumps({"action": "approve_release", "release_id": approval.release_id, "approver": request.session.get("username", "unknown"), "reason": approval.reason}).encode()
