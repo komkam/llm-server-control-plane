@@ -1,21 +1,17 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-import yaml
 import requests
 import re
-import copy
 
 app = FastAPI()
 CJK_TEXT = re.compile(r"[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]")
 
-with open("rules.yaml") as f:
-    rules = yaml.safe_load(f)
-
-PHI_CLASSIFIER_URL = "http://localhost:8082/v1/chat/completions"
 AGENT_URL = "http://127.0.0.1:5100/v1/chat/completions"
 AGENT_MODEL = "server-diagnostician"
 ELECTRICAL_AGENT_URL = "http://127.0.0.1:5301/v1/chat/completions"
 ELECTRICAL_AGENT_MODEL = "electrical-engineer"
+MECHANICAL_AGENT_URL = "http://127.0.0.1:5302/v1/chat/completions"
+MECHANICAL_AGENT_MODEL = "mechanical-engineer"
 
 # Public model names are translated here so the router can call each local
 # backend directly without an extra proxy service.
@@ -23,10 +19,6 @@ BACKENDS = {
     "qwen-engineer": {
         "url": "http://localhost:11434/v1/chat/completions",
         "model": "qwen2.5:7b",
-    },
-    "phi-fast": {
-        "url": "http://localhost:8082/v1/chat/completions",
-        "model": "Phi-3-mini",
     },
 }
 
@@ -101,208 +93,10 @@ def enforce_output_language(payload, backend, language):
     payload["choices"][0]["message"]["content"] = CJK_TEXT.sub("", content)
     return payload
 
-def classify_with_phi(prompt):
+def select_model(_prompt: str) -> str:
+    """Route normal chat directly to the primary engineering model."""
+    return "qwen-engineer"
 
-    prompt = prompt[-2000:]
-
-    payload = {
-
-        "model": "phi-fast",
-
-        "messages": [
-
-            {
-                "role": "system",
-                "content": """
-You are a strict task routing classifier.
-
-Your ONLY job is to classify the user's task.
-
-Return exactly ONE word:
-
-HARD
-
-or
-
-EASY
-
-Never return anything else.
-
-HARD:
-- coding
-- debugging
-- engineering
-- calculations
-- Linux
-- Docker
-- servers
-- networking
-- CPU/GPU/RAM troubleshooting
-- hardware diagnostics
-- PLC
-- VFD
-- electrical systems
-- configuration
-- system administration
-- performance analysis
-- troubleshooting
-- technical design
-- multi-step reasoning
-
-EASY:
-- greetings
-- casual conversation
-- simple translation
-- simple definitions
-- simple factual questions
-- short summaries
-
-CLASSIFICATION:
-"""
-            },
-
-            {
-                "role": "user",
-                "content": prompt
-            }
-
-        ],
-
-        "temperature": 0,
-
-        "max_tokens": 5
-    }
-
-    response = requests.post(
-        PHI_CLASSIFIER_URL,
-        json=payload,
-        timeout=10
-    )
-
-    result = response.json()
-
-    decision = (
-        result.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-    )
-
-    decision = decision.strip().upper()
-
-    print(f"[CLASSIFIER RAW] {decision}")
-
-    if decision == "HARD":
-        return "HARD"
-
-    if decision == "EASY":
-        return "EASY"
-
-    # FAIL-SAFE
-    print(
-        f"[CLASSIFIER INVALID] {decision} -> FAILSAFE HARD"
-    )
-
-    return "HARD"
-
-def trim_context(body, model):
-
-    # Phi context 4k จำกัดมาก
-    if model == rules["light_model"]:
-
-        messages = body.get("messages", [])
-
-        system = []
-        user = None
-
-        for msg in messages:
-
-            if msg.get("role") == "system":
-                system.append(msg)
-
-
-        for msg in reversed(messages):
-
-            if msg.get("role") == "user":
-                user = msg
-                break
-
-
-        new_messages = system
-
-        if user:
-            new_messages.append(user)
-
-
-        body["messages"] = new_messages
-
-
-    return body
-
-def keyword_route(prompt):
-
-    keywords = rules.get("heavy_keywords", [])
-    thai_keywords = rules.get("heavy_keywords_th", [])
-
-    prompt_lower = prompt.lower()
-
-    matched = []
-
-    for keyword in keywords:
-
-        pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
-
-        if re.search(pattern, prompt_lower):
-            matched.append(keyword)
-
-    if matched:
-
-        print(
-            f"[KEYWORD ROUTE] HARD keywords={matched}"
-        )
-
-        return "HARD"
-
-    matched_thai = [keyword for keyword in thai_keywords if keyword in prompt]
-    if matched_thai:
-        print(f"[KEYWORD ROUTE] HARD Thai keywords={matched_thai}")
-        return "HARD"
-
-    return None
-
-def select_model(prompt):
-
-    try:
-
-        # Layer 1: deterministic keyword routing
-        level = keyword_route(prompt)
-
-        if level == "HARD":
-
-            return rules["heavy_model"]
-
-        # Layer 2: LLM classifier
-        level = classify_with_phi(prompt)
-
-        print(
-            f"[CLASSIFIER] {level}"
-        )
-
-        if level == "HARD":
-
-            return rules["heavy_model"]
-
-        return rules["light_model"]
-
-    except Exception as e:
-
-        print(
-            f"[ROUTER ERROR] {e}"
-        )
-
-        # Fail-safe:
-        # Technical routing failures should prefer the
-        # stronger model rather than silently downgrading.
-        return rules["heavy_model"]
 
 @app.post("/v1/chat/completions")
 async def chat(request: Request):
@@ -342,6 +136,22 @@ async def chat(request: Request):
                 detail=f"Electrical Engineering Agent unavailable: {exc}",
             ) from exc
 
+    # Mechanical analysis is an explicit specialist route. It is proposal-only
+    # and never receives Action Engine or machine-control capabilities.
+    if body.get("model") == MECHANICAL_AGENT_MODEL:
+        body["stream"] = False
+        try:
+            response = requests.post(MECHANICAL_AGENT_URL, json=body, timeout=180)
+            return JSONResponse(
+                content=annotate_response(enforce_output_language(response.json(), {"url": MECHANICAL_AGENT_URL, "model": MECHANICAL_AGENT_MODEL}, selected_language(body["messages"])), MECHANICAL_AGENT_MODEL),
+                status_code=response.status_code,
+            )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Mechanical Engineering Agent unavailable: {exc}",
+            ) from exc
+
     messages = body.get("messages", [])
 
     prompt = ""
@@ -355,7 +165,6 @@ async def chat(request: Request):
             break
 
 
-# จำกัดข้อความที่ส่งให้ Phi classifier
     if len(prompt) > 1500:
 
         prompt_for_router = prompt[-1500:]
@@ -374,7 +183,6 @@ async def chat(request: Request):
 
     backend = BACKENDS[model]
     body["model"] = backend["model"]
-    body = trim_context(body, model)
 
     # This proxy returns a JSON response; streaming requires a separate
     # StreamingResponse implementation and must not be forwarded as SSE.
@@ -382,14 +190,6 @@ async def chat(request: Request):
 
     try:
         response = requests.post(backend["url"], json=body, timeout=120)
-        if response.status_code >= 500:
-            fallback_model = rules["light_model"] if model == rules["heavy_model"] else rules["heavy_model"]
-            fallback = BACKENDS[fallback_model]
-            fallback_body = trim_context(copy.deepcopy(body), fallback_model)
-            fallback_body["model"] = fallback["model"]
-            print(f"[ROUTER FALLBACK] {model} -> {fallback_model} ({response.status_code})")
-            response = requests.post(fallback["url"], json=fallback_body, timeout=120)
-            model = fallback_model
         return JSONResponse(
             content=annotate_response(enforce_output_language(response.json(), BACKENDS[model], selected_language(body["messages"])), model),
             status_code=response.status_code,

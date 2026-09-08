@@ -42,8 +42,8 @@ SERVICES = {
     "agent": "http://127.0.0.1:5100/health",
     "dashboard": os.environ.get("DASHBOARD_HEALTH_URL", "http://127.0.0.1:7000/api/health"),
     "electrical-engineer": "http://127.0.0.1:5301/health",
+    "mechanical-engineer": "http://127.0.0.1:5302/health",
     "ollama": "http://127.0.0.1:11434/api/tags",
-    "llama-server": "http://127.0.0.1:8082/health",
     "observability": "http://127.0.0.1:9090/-/ready",
     "monitor": None,
 }

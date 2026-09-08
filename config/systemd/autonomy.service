@@ -1,7 +1,6 @@
 [Unit]
 Description=Constrained Autonomous LLM Server Supervisor
-After=network-online.target router.service agent.service monitor.service dashboard.service ollama.service llama-server.service
-Wants=network-online.target
+After=network-online.target router.service agent.service dashboard.service ollama.service electrical-engineer.service mechanical-engineer.service
 
 [Service]
 Type=simple

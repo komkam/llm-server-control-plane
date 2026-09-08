@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.0 — 2026-09-08
+
+- Retired Phi-3/llama-server from production routing and disabled its systemd service.
+- Normal `auto` chat now routes directly to Qwen; model files remain on disk for rollback only.
+- Updated diagnostics, monitoring, action policy, deployment verification and documentation for the Qwen-only runtime.
+
 ## v1.1.0 — 2026-09-08
 
 - Added proposal-only Electrical Engineering Agent, isolated on loopback port 5301.

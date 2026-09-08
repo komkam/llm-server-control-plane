@@ -38,7 +38,7 @@ fi
 
 
 units=(
-  action-engine.service agent.service autonomy.service dashboard.service monitor.service router.service electrical-engineer.service
+  action-engine.service agent.service autonomy.service dashboard.service monitor.service router.service electrical-engineer.service mechanical-engineer.service
   control-plane-exporter.service docker-exporter.service gpu-exporter.service
   observability.service openwebui-image-check.service restic-backup.service restic-backup.timer
 )

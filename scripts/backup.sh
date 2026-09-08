@@ -7,7 +7,7 @@ DESTINATION="${BASE_DIR}/backups/snapshots/${STAMP}"
 
 install -d -m 0750 "${DESTINATION}"
 tar -C "${BASE_DIR}" -czf "${DESTINATION}/application.tar.gz" \
-  apps services config deploy scripts docs \
+  apps services config deploy scripts docs compose.yaml install.sh README.md CHANGELOG.md .gitignore \
   data/autonomy-state.json data/state.json data/history.json \
   logs/autonomy.jsonl
 cp /etc/systemd/system/{agent,autonomy,dashboard,monitor,router}.service "${DESTINATION}/"

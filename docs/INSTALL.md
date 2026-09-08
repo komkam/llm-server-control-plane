@@ -39,6 +39,7 @@ by Git.
 | Router API | 5000 | — |
 | Diagnostic Agent | 5100 | — |
 | Electrical Engineering Agent | `5301` | — |
+| Mechanical Engineering Agent | `5302` | — |
 | Action Engine | 5200 | — |
 
 Configure your reverse proxy or Tailscale Serve rules with your own host name.

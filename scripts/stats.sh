@@ -15,9 +15,6 @@ echo "========== OLLAMA ==========";
 ollama ps;
 
 echo;
-echo "========== LLAMA SERVER ==========";
-systemctl is-active llama-server;
-
 echo;
 echo "========== ROUTER ==========";
 systemctl is-active router;

@@ -6,7 +6,6 @@ ENDPOINTS = {
 
     "ollama": "http://localhost:11434/api/tags",
 
-    "llama.cpp": "http://localhost:8082/health",
 
     "router": "http://localhost:5000/health",
 

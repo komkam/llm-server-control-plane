@@ -10,11 +10,12 @@ this repository contains no device- or tailnet-specific address.
 Open WebUI
   -> Semantic Router
      -> Ollama / Qwen
-     -> llama.cpp / Phi-3
+     -> Ollama / Qwen
 
 Control Plane
   -> Diagnostic Agent
   -> Electrical Engineering Agent (proposal-only)
+  -> Mechanical Engineering Agent (proposal-only)
   -> Autonomy Supervisor
   -> Action Engine
   -> Change Planner / Candidate Builder

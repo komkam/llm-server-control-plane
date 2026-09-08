@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_DIR=/opt/llm-server
 DASHBOARD_HEALTH_URL=${DASHBOARD_HEALTH_URL:-http://127.0.0.1:7000/api/health}
-SERVICES=(ollama llama-server monitor router agent dashboard autonomy)
+SERVICES=(ollama electrical-engineer mechanical-engineer monitor router agent dashboard autonomy)
 
 wait_for_http() {
   local url=$1 attempts=${2:-15}
@@ -18,7 +18,7 @@ wait_for_http() {
 
 verify_units() {
   local output
-  if ! output=$(systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,monitor,router}.service 2>&1); then
+  if ! output=$(systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,electrical-engineer,monitor,router}.service 2>&1); then
     printf '%s\n' "$output" >&2
     return 1
   fi
@@ -34,11 +34,17 @@ done
   "${BASE_DIR}/services/monitor.py" \
   "${BASE_DIR}/apps/dashboard/app.py"
 "${BASE_DIR}/apps/agent/.venv/bin/python" -m py_compile \
-  "${BASE_DIR}/apps/agent/agent_server.py"
+  "${BASE_DIR}/apps/agent/agent_server.py" \
+  "${BASE_DIR}/apps/electrical-engineer/electrical_agent.py" \
+  "${BASE_DIR}/apps/electrical-engineer/agent_server.py" \
+  "${BASE_DIR}/apps/mechanical-engineer/mechanical_agent.py" \
+  "${BASE_DIR}/apps/mechanical-engineer/agent_server.py"
 
 verify_units
 visudo -cf /etc/sudoers.d/action-engine
 
+wait_for_http http://127.0.0.1:5301/health
+wait_for_http http://127.0.0.1:5302/health
 wait_for_http http://127.0.0.1:5100/health
 wait_for_http http://127.0.0.1:5000/health
 wait_for_http "${DASHBOARD_HEALTH_URL}"

@@ -23,6 +23,7 @@ from tools.gpu import get_gpu_info
 from tools.llm import get_failed_services, get_llm_latency, get_llm_services
 from tools.logs import get_system_logs
 from tools.network import get_endpoint_health
+from tools.graphs import analyze_dependency_graph, render_dependency_graph
 from tools.system import (
     get_cpu_info,
     get_disk_info,
@@ -46,6 +47,7 @@ DISALLOWED_OUTPUT = re.compile(r"[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]")
 
 SYSTEM_PROMPT = """You are an expert Linux LLM server diagnostician.
 Use tools only when their data is relevant to the user's request.  Do not
+For dependency, architecture or service-relationship questions, use the bounded local graph tools when structured nodes and edges are available. Never invent graph edges; state assumptions.
 invent measurements.  Distinguish facts, inferences, and possible root causes.
 For LLM performance, prioritize inference latency, tokens/sec, GPU, CPU,
 memory, process configuration, and router overhead.  A fast health endpoint
@@ -70,10 +72,12 @@ TOOL_DESCRIPTIONS = {
     "get_docker_logs": "Read a bounded number of recent lines from one Docker container.",
     "get_docker_images": "List locally available Docker images.",
     "get_failed_services": "List failed systemd services.",
-    "get_llm_services": "Read status of Ollama, llama-server, and router services.",
+    "get_llm_services": "Read status of Ollama and router services.",
     "get_llm_latency": "Run active, small LLM latency benchmarks. Use only when performance measurement is explicitly requested.",
     "get_endpoint_health": "Check local LLM endpoint health and response time.",
     "get_system_logs": "Read a bounded number of recent system journal entries.",
+    "analyze_dependency_graph": "Analyse a bounded local dependency graph: identify cycles, roots, leaves and a safe topological order; returns Mermaid source.",
+    "render_dependency_graph": "Render a bounded local dependency graph as an interactive HTML artifact and return the local artifact path plus analysis.",
 }
 
 TOOL_FUNCTIONS = [
@@ -81,6 +85,7 @@ TOOL_FUNCTIONS = [
     get_cpu_info, get_uptime_info, get_gpu_info, get_docker_info,
     get_docker_stats, get_docker_logs, get_docker_images, get_failed_services,
     get_llm_services, get_llm_latency, get_endpoint_health, get_system_logs,
+    analyze_dependency_graph, render_dependency_graph,
 ]
 
 TOOLS = [

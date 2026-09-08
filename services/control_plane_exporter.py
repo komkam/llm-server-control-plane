@@ -13,9 +13,9 @@ ACTION_LOG = f"{BASE}/apps/action-engine/data/actions.jsonl"
 AUTONOMY_LOG = f"{BASE}/logs/autonomy.jsonl"
 DEPLOYMENTS = f"{BASE}/releases/deployments"
 SERVICES = (
-    "router", "agent", "dashboard", "ollama", "llama-server", "monitor",
+    "router", "agent", "dashboard", "ollama", "monitor",
     "autonomy", "action-engine", "observability", "control-plane-exporter",
-    "gpu-exporter", "docker-exporter", "electrical-engineer",
+    "gpu-exporter", "docker-exporter", "electrical-engineer", "mechanical-engineer",
 )
 
 

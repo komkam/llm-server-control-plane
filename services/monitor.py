@@ -401,9 +401,10 @@ def check_docker(name):
 def get_services():
 
     system_services = [
-        "llama-server",
-        "router"
-        , "agent",
+        "router",
+        "agent",
+        "electrical-engineer",
+        "mechanical-engineer",
         "dashboard",
         "autonomy",
         "ollama",

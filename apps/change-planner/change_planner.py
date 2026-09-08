@@ -9,7 +9,7 @@ from pydantic import BaseModel
 ACTION_ENGINE = "http://127.0.0.1:5200/v1/actions"
 QWEN = "http://127.0.0.1:11434/v1/chat/completions"
 app = FastAPI(title="LLM Server Change Planner")
-ALLOWED_PATHS = ["/opt/llm-server/apps/router/app.py", "/opt/llm-server/apps/router/rules.yaml", "/opt/llm-server/apps/agent/", "/opt/llm-server/apps/dashboard/", "/opt/llm-server/services/", "/opt/llm-server/config/systemd/", "/opt/llm-server/deploy/"]
+ALLOWED_PATHS = ["/opt/llm-server/apps/router/app.py", "/opt/llm-server/apps/agent/", "/opt/llm-server/apps/dashboard/", "/opt/llm-server/services/", "/opt/llm-server/config/systemd/", "/opt/llm-server/deploy/"]
 
 
 class ChangeRequest(BaseModel):
