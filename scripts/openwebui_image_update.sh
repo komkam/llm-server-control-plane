@@ -3,11 +3,30 @@ set -euo pipefail
 
 BASE=/opt/llm-server
 DEPLOY_DIR="$BASE/deploy"
-ENV_FILE="$DEPLOY_DIR/.openwebui-image.env"
+ENV_FILE="$BASE/.env"
 UPDATE_DIR="$BASE/image-updates"
 IMAGE=llm-server/open-webui:security-patched
 TRIVY_IMAGE=aquasec/trivy:0.68.2
 COMPOSE=(/usr/bin/docker compose --project-name llm-server --env-file "$ENV_FILE" -f "$DEPLOY_DIR/compose.yaml")
+
+set_env_value(){
+  python3 - "$ENV_FILE" "$1" "$2" <<'PYENV'
+from pathlib import Path
+import os
+import sys
+import tempfile
+path = Path(sys.argv[1])
+key, value = sys.argv[2:]
+lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+lines = [line for line in lines if not line.startswith(f"{key}=")]
+lines.append(f"{key}={value}")
+fd, temporary = tempfile.mkstemp(prefix="llm-env-", dir=path.parent)
+with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    handle.write("\n".join(lines) + "\n")
+os.chmod(temporary, 0o600)
+os.replace(temporary, path)
+PYENV
+}
 
 candidate_dir(){ printf '%s/%s' "$UPDATE_DIR" "$1"; }
 state(){ cat "$(candidate_dir "$1")/status" 2>/dev/null || true; }
@@ -52,16 +71,15 @@ PY
 }
 
 deploy(){
-  local id=$1 dir image previous backup_env
+  local id=$1 dir image previous
   dir=$(candidate_dir "$id"); test "$(state "$id")" = APPROVED; test -f "$dir/approval.json"
   image=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["image"])' "$dir/manifest.json")
   previous=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["previous_image"])' "$dir/manifest.json")
-  backup_env="$dir/previous.env"; test ! -e "$ENV_FILE" || cp "$ENV_FILE" "$backup_env"
-  printf 'OPENWEBUI_IMAGE=%s\n' "$image" > "$ENV_FILE"
+  set_env_value OPENWEBUI_IMAGE "$image"
   if "${COMPOSE[@]}" up -d --no-deps open-webui && wait_for_webui; then
     echo DEPLOYED > "$dir/status"; printf '{"state":"SUCCESS","time":"%s"}\n' "$(date -u +%FT%TZ)" >> "$dir/events.jsonl"; return 0
   fi
-  if test -f "$backup_env"; then cp "$backup_env" "$ENV_FILE"; else printf 'OPENWEBUI_IMAGE=%s\n' "$previous" > "$ENV_FILE"; fi
+  set_env_value OPENWEBUI_IMAGE "$previous"
   "${COMPOSE[@]}" up -d --no-deps open-webui
   wait_for_webui
   echo ROLLED_BACK > "$dir/status"; printf '{"state":"ROLLED_BACK","time":"%s"}\n' "$(date -u +%FT%TZ)" >> "$dir/events.jsonl"

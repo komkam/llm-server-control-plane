@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE=/opt/llm-server
-CONFIG="$BASE/config/restic/backup.env"
+ENV_FILE="$BASE/.env"
 STATE="$BASE/data/restic-state.json"
 LOG_DIR="$BASE/logs"
 
@@ -11,18 +11,12 @@ record() {
   printf '{"time":"%s","state":"%s","detail":"%s"}\n' "$(date -u +%FT%TZ)" "$1" "$2" > "$STATE"
 }
 
-if [[ ! -f "$CONFIG" ]]; then
-  record CONFIG_REQUIRED "remote repository is not configured"
-  exit 0
-fi
-
-# The file is root-owned, mode 0600, and contains only restic backend settings.
 set -a
-. "$CONFIG"
+. "$ENV_FILE"
 set +a
-if [[ -z "${RESTIC_REPOSITORY:-}" || -z "${RESTIC_PASSWORD_FILE:-}" || ! -r "$RESTIC_PASSWORD_FILE" ]]; then
-  record CONFIG_INVALID "RESTIC_REPOSITORY or readable RESTIC_PASSWORD_FILE is missing"
-  exit 1
+if [[ -z "${RESTIC_REPOSITORY:-}" || -z "${RESTIC_PASSWORD:-}" ]]; then
+  record CONFIG_REQUIRED "RESTIC_REPOSITORY and RESTIC_PASSWORD are required in .env"
+  exit 0
 fi
 
 if ! /usr/bin/restic snapshots >/dev/null 2>&1; then

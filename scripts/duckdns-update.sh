@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source /etc/duckdns/duckdns.env
+BASE=/opt/llm-server
+set -a
+. "$BASE/.env"
+set +a
+: "${DUCKDNS_DOMAIN:?DUCKDNS_DOMAIN is required}"
+: "${DUCKDNS_TOKEN:?DUCKDNS_TOKEN is required}"
 domain="${DUCKDNS_DOMAIN%.duckdns.org}"
 response="$(curl --fail --silent --show-error --max-time 20 --get \
   --data-urlencode "domains=${domain}" \

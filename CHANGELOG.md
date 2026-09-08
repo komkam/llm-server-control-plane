@@ -30,7 +30,7 @@ First deployable release of the LLM Server Control Plane.
 
 ### Deployment boundary
 
-This release installs definitions only. Review `/etc/llm-server/runtime.env`,
+This release installs definitions only. Review `/opt/llm-server/.env`,
 required Python environments, Docker, local model services and reverse-proxy or
 Tailscale configuration before enabling individual units. Services are not
 started automatically by `install.sh`.

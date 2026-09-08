@@ -21,7 +21,7 @@ The installer creates a random local Grafana password file when it is absent; re
 cd /opt/llm-server
 sudo ./install.sh
 docker compose up -d
-sudoedit /etc/llm-server/runtime.env
+sudoedit /opt/llm-server/.env
 ```
 
 The installer copies unit files and runs `systemctl daemon-reload`. It does not

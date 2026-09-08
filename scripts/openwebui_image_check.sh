@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE=/opt/llm-server
-DEPLOY="$BASE/deploy/.openwebui-image.env"
+DEPLOY="$BASE/.env"
 OUT="$BASE/data/image-update-proposals"
 IMAGE=ghcr.io/open-webui/open-webui:main
 install -d -m 0750 -o action-engine -g action-engine "$OUT"

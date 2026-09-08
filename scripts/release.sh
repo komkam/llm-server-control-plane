@@ -5,7 +5,7 @@ BASE=/opt/llm-server
 RELEASES="${BASE}/releases"
 STAGING="${BASE}/staging"
 LOCK="${RELEASES}/deploy.lock"
-PACKAGE_PATHS=(apps services config deploy scripts docs compose.yaml install.sh README.md CHANGELOG.md .gitignore)
+PACKAGE_PATHS=(apps services config deploy scripts docs compose.yaml install.sh README.md CHANGELOG.md .gitignore .env.example)
 SERVICES=(ollama electrical-engineer mechanical-engineer monitor router agent dashboard autonomy)
 
 release_dir() {
@@ -23,9 +23,8 @@ package_application() {
     --exclude='apps/*/.venv' \
     --exclude='apps/**/__pycache__' \
     --exclude='config/observability/secrets' \
-    --exclude='config/secrets/age.key' \
+    --exclude='.env' \
     --exclude='config/security' \
-    --exclude='deploy/.openwebui-image.env' \
     -C "$source" -czf "$archive" "${PACKAGE_PATHS[@]}"
 }
 

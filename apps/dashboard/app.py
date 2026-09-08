@@ -40,7 +40,12 @@ CONTROL_AUDIT_LOG = os.path.join(BASE_DIR, "apps", "dashboard", "data", "control
 CONTROLLED_SERVICES = {"router", "agent", "dashboard", "ollama", "monitor", "autonomy", "electrical-engineer", "mechanical-engineer"}
 HEALTH_CHECK_SERVICES = CONTROLLED_SERVICES | {"open-webui"}
 CONTROLLED_ACTIONS = {"restart_service", "health_check", "create_backup", "verify_deployment"}
-AUTH_FILE = os.path.join(BASE_DIR, "apps", "dashboard", "data", "auth.json")
+AUTH_ENV_KEYS = {
+    "username": "DASHBOARD_USERNAME",
+    "password_hash": "DASHBOARD_PASSWORD_SCRYPT",
+    "salt": "DASHBOARD_PASSWORD_SALT",
+    "session_secret": "DASHBOARD_SESSION_SECRET",
+}
 
 
 class ControlRequest(BaseModel):
@@ -58,8 +63,11 @@ class DeployRequest(BaseModel):
 
 
 def load_auth_config():
-    with open(AUTH_FILE, "r") as handle:
-        return json.load(handle)
+    config = {field: os.environ.get(environment, "") for field, environment in AUTH_ENV_KEYS.items()}
+    missing = [environment for field, environment in AUTH_ENV_KEYS.items() if not config[field]]
+    if missing:
+        raise RuntimeError(f"Missing Dashboard authentication variables: {', '.join(missing)}")
+    return config
 
 
 AUTH_CONFIG = load_auth_config()
@@ -392,9 +400,9 @@ if __name__ == "__main__":
 
         "app:app",
 
-        host=os.environ.get("DASHBOARD_HOST", "127.0.0.1"),
+        host=os.environ.get("DASHBOARD_HOST") or "127.0.0.1",
 
-        port=7000,
+        port=int(os.environ.get("DASHBOARD_PORT") or "7000"),
 
         reload=False
 

@@ -1,6 +1,6 @@
 services:
   open-webui:
-    image: llm-server/open-webui:security-patched
+    image: ${OPENWEBUI_IMAGE:-llm-server/open-webui:security-patched}
     container_name: open-webui
     restart: unless-stopped
 
@@ -12,7 +12,7 @@ services:
 
     environment:
       OPENAI_API_BASE_URL: http://host.docker.internal:5000/v1
-      OPENAI_API_KEY: local-llm
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
 
     extra_hosts:
       - "host.docker.internal:host-gateway"

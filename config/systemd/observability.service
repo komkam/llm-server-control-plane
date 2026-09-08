@@ -9,8 +9,8 @@ Type=oneshot
 RemainAfterExit=yes
 User=root
 ExecStartPre=/opt/llm-server/scripts/prepare_observability.sh
-ExecStart=/usr/bin/docker compose -f /opt/llm-server/deploy/observability.compose.yaml up -d
-ExecStop=/usr/bin/docker compose -f /opt/llm-server/deploy/observability.compose.yaml stop
+ExecStart=/usr/bin/docker compose --env-file /opt/llm-server/.env -f /opt/llm-server/deploy/observability.compose.yaml up -d
+ExecStop=/usr/bin/docker compose --env-file /opt/llm-server/.env -f /opt/llm-server/deploy/observability.compose.yaml stop
 TimeoutStartSec=20min
 TimeoutStopSec=2min
 

@@ -13,15 +13,14 @@ if ! test -d "$REFERENCE"; then install -d -m 0750 "$REFERENCE"; tar -xzf "$(rea
 for component in apps services config deploy scripts docs; do
   rsync -a --exclude='data' --exclude='__pycache__' --exclude='.venv' --exclude='logs' --exclude='observability/secrets' --exclude='secrets/age.key' --exclude='security' "$BASE/$component/" "$WORK/$component/"
 done
-for file in compose.yaml install.sh README.md CHANGELOG.md .gitignore; do
+for file in compose.yaml install.sh README.md CHANGELOG.md .gitignore .env.example; do
   cp -f "$BASE/$file" "$WORK/$file"
 done
 cp -f "$BASE/.sops.yaml" "$WORK/.sops.yaml" 2>/dev/null || true
 rm -rf "$WORK/apps/agent/data" "$WORK/apps/action-engine/data" "$WORK/apps/dashboard/data"
-rm -f "$WORK/config/secrets/age.key" "$WORK/deploy/.openwebui-image.env"
 
 > "$ARTIFACTS/diff.patch"
-for component in apps services config deploy scripts docs compose.yaml install.sh README.md CHANGELOG.md .gitignore .sops.yaml; do
+for component in apps services config deploy scripts docs compose.yaml install.sh README.md CHANGELOG.md .gitignore .env.example .sops.yaml; do
   diff -ruN --exclude='__pycache__' --exclude='.venv' --exclude='data' --exclude='logs' "$REFERENCE/$component" "$WORK/$component" >> "$ARTIFACTS/diff.patch" || test $? -eq 1
 done
 grep '^diff -ruN ' "$ARTIFACTS/diff.patch" | awk '{print $NF}' | sed "s|$WORK/||" | sort -u > "$ARTIFACTS/changed-paths.txt" || true

@@ -8,7 +8,6 @@ User=action-engine
 Group=action-engine
 WorkingDirectory=/opt/llm-server/apps/action-engine
 ExecStart=/opt/llm-server/venv/bin/python -m uvicorn action_engine:app --host 127.0.0.1 --port 5200
-EnvironmentFile=-/etc/llm-server/runtime.env
 Restart=always
 RestartSec=5
 UMask=0077

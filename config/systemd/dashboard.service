@@ -13,8 +13,7 @@ Group=dashboard-agent
 WorkingDirectory=/opt/llm-server/apps/dashboard
 
 ExecStart=/opt/llm-server/venv/bin/python app.py
-Environment=DASHBOARD_HOST=127.0.0.1
-EnvironmentFile=-/etc/llm-server/runtime.env
+EnvironmentFile=/opt/llm-server/.env
 
 Restart=always
 

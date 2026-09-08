@@ -24,8 +24,8 @@ services:
     depends_on: [prometheus, loki, tempo]
     environment:
       GF_SERVER_ROOT_URL: http://127.0.0.1:3100
-      GF_SECURITY_ADMIN_USER: control-plane
-      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-control-plane}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
@@ -36,7 +36,6 @@ services:
       - ../data/observability/grafana:/var/lib/grafana
       - ../config/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ../config/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - ../config/observability/secrets/grafana_admin_password:/run/secrets/grafana_admin_password:ro
     networks: [observability]
 
   loki:

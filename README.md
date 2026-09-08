@@ -34,7 +34,7 @@ Install from a checked-out repository as root:
 ```bash
 sudo ./install.sh
 docker compose up -d
-sudoedit /etc/llm-server/runtime.env
+sudoedit /opt/llm-server/.env
 ```
 
 The installer copies service definitions and creates the local runtime file. It
@@ -105,7 +105,7 @@ docker compose -f deploy/observability.compose.yaml ps
 Local release snapshots are created by the deployment pipeline. Restic, SOPS,
 and age configuration are present, but offsite backup requires a separately
 configured repository and credentials. Keep encrypted secrets outside Git and
-use `config/secrets/README.md` as the local setup guide. Copy `config/runtime.env.example` to a machine-local runtime file; it is deliberately ignored by Git.
+use `config/secrets/README.md` as the local setup guide. Copy `.env.example` to a machine-local runtime file; it is deliberately ignored by Git.
 
 ## Repository layout
 

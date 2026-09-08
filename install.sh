@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Installs repository-owned systemd definitions and creates only a local
-# runtime configuration. It never enables or starts services automatically.
+# Installs repository-owned systemd definitions and creates one machine-local
+# .env file. It never enables or starts services automatically.
 
 BASE_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-RUNTIME_DIR=/etc/llm-server
-RUNTIME_ENV=${RUNTIME_DIR}/runtime.env
+ENV_FILE=${BASE_DIR}/.env
 
 if [[ ${EUID} -ne 0 ]]; then
   echo "Run with sudo: sudo ./install.sh" >&2
@@ -14,26 +13,17 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 for required in \
-  "${BASE_DIR}/config/runtime.env.example" \
+  "${BASE_DIR}/.env.example" \
   "${BASE_DIR}/config/systemd/dashboard.service"; do
   [[ -f ${required} ]] || { echo "Missing required file: ${required}" >&2; exit 1; }
 done
 
-install -d -m 0750 "${RUNTIME_DIR}"
-if [[ ! -e ${RUNTIME_ENV} ]]; then
-  install -m 0640 "${BASE_DIR}/config/runtime.env.example" "${RUNTIME_ENV}"
-  echo "Created ${RUNTIME_ENV}; edit it before enabling services."
+if [[ ! -e ${ENV_FILE} ]]; then
+  install -m 0600 "${BASE_DIR}/.env.example" "${ENV_FILE}"
+  echo "Created ${ENV_FILE}; replace every GENERATE_AT_INSTALL value before enabling services."
 else
-  echo "Preserved existing ${RUNTIME_ENV}."
-fi
-GRAFANA_SECRET="${BASE_DIR}/config/observability/secrets/grafana_admin_password"
-if [[ ! -s ${GRAFANA_SECRET} ]]; then
-  command -v openssl >/dev/null || { echo "openssl is required to create the Grafana credential" >&2; exit 1; }
-  install -d -m 0750 "$(dirname "${GRAFANA_SECRET}")"
-  umask 077
-  openssl rand -base64 24 > "${GRAFANA_SECRET}"
-  chmod 0600 "${GRAFANA_SECRET}"
-  echo "Created a local Grafana credential at ${GRAFANA_SECRET}."
+  chmod 0600 "${ENV_FILE}"
+  echo "Preserved existing ${ENV_FILE}."
 fi
 
 
@@ -53,4 +43,4 @@ done
 
 systemctl daemon-reload
 echo "Installed ${installed} systemd unit files. No services were enabled or started."
-echo "Next: review /etc/llm-server/runtime.env, then enable only the services you need."
+echo "Next: review ${ENV_FILE}, then enable only the services you need."
