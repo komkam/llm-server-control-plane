@@ -1,0 +1,23 @@
+[Unit]
+Description=Proposal-Only Electrical Engineering Agent
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=electrical-agent
+Group=electrical-agent
+WorkingDirectory=/opt/llm-server/apps/electrical-engineer
+ExecStart=/opt/llm-server/apps/agent/.venv/bin/python agent_server.py
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/llm-server/apps/electrical-engineer/data
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

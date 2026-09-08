@@ -14,6 +14,8 @@ with open("rules.yaml") as f:
 PHI_CLASSIFIER_URL = "http://localhost:8082/v1/chat/completions"
 AGENT_URL = "http://127.0.0.1:5100/v1/chat/completions"
 AGENT_MODEL = "server-diagnostician"
+ELECTRICAL_AGENT_URL = "http://127.0.0.1:5301/v1/chat/completions"
+ELECTRICAL_AGENT_MODEL = "electrical-engineer"
 
 # Public model names are translated here so the router can call each local
 # backend directly without an extra proxy service.
@@ -322,6 +324,22 @@ async def chat(request: Request):
             raise HTTPException(
                 status_code=502,
                 detail=f"Diagnostic agent unavailable: {exc}",
+            ) from exc
+
+    # Electrical analysis is an explicit specialist route. It is proposal-only
+    # and never receives Action Engine or device-control capabilities.
+    if body.get("model") == ELECTRICAL_AGENT_MODEL:
+        body["stream"] = False
+        try:
+            response = requests.post(ELECTRICAL_AGENT_URL, json=body, timeout=180)
+            return JSONResponse(
+                content=annotate_response(enforce_output_language(response.json(), {"url": ELECTRICAL_AGENT_URL, "model": ELECTRICAL_AGENT_MODEL}, selected_language(body["messages"])), ELECTRICAL_AGENT_MODEL),
+                status_code=response.status_code,
+            )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Electrical Engineering Agent unavailable: {exc}",
             ) from exc
 
     messages = body.get("messages", [])

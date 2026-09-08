@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.0 — 2026-09-08
+
+- Added proposal-only Electrical Engineering Agent, isolated on loopback port 5301.
+- Added explicit Router route, monitored service health and Action Engine restart allowlist.
+- Added safety policy, engineering review boundary and curated knowledge-base placeholder.
+
 ## v1.0.0 — 2026-09-08
 
 First deployable release of the LLM Server Control Plane.

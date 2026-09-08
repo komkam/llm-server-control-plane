@@ -14,6 +14,7 @@ Open WebUI
 
 Control Plane
   -> Diagnostic Agent
+  -> Electrical Engineering Agent (proposal-only)
   -> Autonomy Supervisor
   -> Action Engine
   -> Change Planner / Candidate Builder

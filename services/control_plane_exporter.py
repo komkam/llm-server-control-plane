@@ -15,7 +15,7 @@ DEPLOYMENTS = f"{BASE}/releases/deployments"
 SERVICES = (
     "router", "agent", "dashboard", "ollama", "llama-server", "monitor",
     "autonomy", "action-engine", "observability", "control-plane-exporter",
-    "gpu-exporter", "docker-exporter",
+    "gpu-exporter", "docker-exporter", "electrical-engineer",
 )
 
 
