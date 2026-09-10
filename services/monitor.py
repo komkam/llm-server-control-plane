@@ -401,7 +401,8 @@ def check_docker(name):
 def get_services():
 
     system_services = [
-        "router",
+        "llm-gateway",
+        "embedding-classifier",
         "agent",
         "electrical-engineer",
         "mechanical-engineer",

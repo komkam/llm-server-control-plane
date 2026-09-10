@@ -16,8 +16,12 @@ ollama ps;
 
 echo;
 echo;
-echo "========== ROUTER ==========";
-systemctl is-active router;
+echo "========== LLM GATEWAY ==========";
+systemctl is-active llm-gateway;
+
+echo;
+echo "========== EMBEDDING CLASSIFIER ==========";
+systemctl is-active embedding-classifier;
 
 echo;
 echo "========== DOCKER ==========";

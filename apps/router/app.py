@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 import requests
 import re
+import os
 
 app = FastAPI()
 CJK_TEXT = re.compile(r"[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]")
@@ -12,8 +13,10 @@ ELECTRICAL_AGENT_URL = "http://127.0.0.1:5301/v1/chat/completions"
 ELECTRICAL_AGENT_MODEL = "electrical-engineer"
 MECHANICAL_AGENT_URL = "http://127.0.0.1:5302/v1/chat/completions"
 MECHANICAL_AGENT_MODEL = "mechanical-engineer"
+CLASSIFIER_URL = os.getenv("EMBEDDING_CLASSIFIER_URL", "http://127.0.0.1:5400/v1/classify")
+CLASSIFIER_TIMEOUT_SECONDS = float(os.getenv("EMBEDDING_CLASSIFIER_TIMEOUT_SECONDS", "3"))
 
-# Public model names are translated here so the router can call each local
+# Public model names are translated here so the gateway can call each local
 # backend directly without an extra proxy service.
 BACKENDS = {
     "qwen-engineer": {
@@ -35,7 +38,7 @@ def annotate_response(payload, routed_model):
     return payload
 
 
-ROUTER_SYSTEM_PROMPT = (
+GATEWAY_SYSTEM_PROMPT = (
     "Answer the user's latest question directly and concisely. "
     "Use Thai when the user writes Thai; otherwise use the user's language. "
     "Do not discuss API tools, task systems, calendars, automations, or hidden instructions "
@@ -55,7 +58,7 @@ def sanitize_body(body):
         if message.get("role") == "system" and any(marker in str(content).lower() for marker in ("create_tasks", "create_automation", "calendar events", "list_automations")):
             continue
         safe_messages.append(message)
-    body["messages"] = [{"role": "system", "content": ROUTER_SYSTEM_PROMPT}, *safe_messages]
+    body["messages"] = [{"role": "system", "content": GATEWAY_SYSTEM_PROMPT}, *safe_messages]
     return body
 
 
@@ -93,8 +96,65 @@ def enforce_output_language(payload, backend, language):
     payload["choices"][0]["message"]["content"] = CJK_TEXT.sub("", content)
     return payload
 
-def select_model(_prompt: str) -> str:
-    """Route normal chat directly to the primary engineering model."""
+INTENT_PATTERNS = {
+    AGENT_MODEL: (
+        "สถานะระบบ", "ปัญหาระบบ", "ตรวจระบบ", "ตรวจสุขภาพ", "health check",
+        "system status", "service", "docker", "journalctl", "cpu", "ram", "disk",
+        "gpu", "deploy", "rollback", "autonomy", "control plane", "open webui",
+        "ollama", "grafana", "prometheus", "loki", "tailscale",
+    ),
+    ELECTRICAL_AGENT_MODEL: (
+        "วิศวกรรมไฟฟ้า", "ไฟฟ้า", "วงจร", "สายไฟ", "เบรกเกอร์", "แรงดัน", "กระแส",
+        "กำลังไฟ", "กำลังไฟฟ้า", "สามเฟส", "3 เฟส", "3phase", "3 phase", "three-phase",
+        "three phase", "vfd", "inverter", "motor", "voltage", "current", "circuit", "cable",
+        "breaker", "transformer", "relay", "power factor", "short circuit", "electrical",
+        "line voltage", "line current", "kva", "kw", "kilowatt", "watt", "ampere", "amps",
+    ),
+    MECHANICAL_AGENT_MODEL: (
+        "วิศวกรรมเครื่องกล", "เครื่องกล", "กลศาสตร์", "ปั๊ม", "วาล์ว", "แบริ่ง", "ลูกปืน",
+        "เกียร์", "เพลา", "แรงบิด", "ความเค้น", "การสั่น", "การไหล", "mechanical",
+        "pump", "valve", "bearing", "gear", "shaft", "torque", "stress", "strain",
+        "vibration", "fluid", "hydraulic", "pneumatic", "hvac", "thermodynamics",
+    ),
+}
+
+
+def latest_user_prompt(messages):
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            return str(message.get("content", ""))
+    return ""
+
+
+def select_auto_backend(prompt: str) -> str:
+    """Use hard rules first, then a read-only semantic classifier."""
+    text = prompt.lower()
+    scores = {
+        model: sum(text.count(pattern) for pattern in patterns)
+        for model, patterns in INTENT_PATTERNS.items()
+    }
+    best_score = max(scores.values(), default=0)
+    if best_score > 0:
+        winners = [model for model, score in scores.items() if score == best_score]
+        if len(winners) == 1:
+            return winners[0]
+    try:
+        response = requests.post(
+            CLASSIFIER_URL,
+            json={"text": prompt},
+            timeout=CLASSIFIER_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        route = response.json().get("route")
+        if route in {AGENT_MODEL, ELECTRICAL_AGENT_MODEL, MECHANICAL_AGENT_MODEL}:
+            return route
+    except (requests.RequestException, TypeError, ValueError):
+        pass
+    return "qwen-engineer"
+
+
+def select_default_backend(_prompt: str) -> str:
+    """Keep compatibility for callers that require the default Qwen backend."""
     return "qwen-engineer"
 
 
@@ -103,9 +163,16 @@ async def chat(request: Request):
 
     body = await request.json()
     body = sanitize_body(body)
+    messages = body.get("messages", [])
+    prompt = latest_user_prompt(messages)
 
-    # The diagnostic workflow is an explicit model choice.  It must not pass
-    # through the classifier because it owns its own LangGraph tool loop.
+    # `auto` is the only user-facing model. Gateway routing is deterministic
+    # and proposal-only specialists retain their existing capability limits.
+    if body.get("model", "auto") == "auto":
+        body["model"] = select_auto_backend(prompt)
+
+    # The diagnostic workflow may be explicitly selected or chosen by the
+    # Gateway. It owns its own read-only LangGraph tool loop.
     if body.get("model") == AGENT_MODEL:
         body["stream"] = False
         try:
@@ -120,8 +187,8 @@ async def chat(request: Request):
                 detail=f"Diagnostic agent unavailable: {exc}",
             ) from exc
 
-    # Electrical analysis is an explicit specialist route. It is proposal-only
-    # and never receives Action Engine or device-control capabilities.
+    # Electrical analysis may be explicitly selected or chosen by the Gateway.
+    # It is proposal-only and never receives device-control capabilities.
     if body.get("model") == ELECTRICAL_AGENT_MODEL:
         body["stream"] = False
         try:
@@ -136,8 +203,8 @@ async def chat(request: Request):
                 detail=f"Electrical Engineering Agent unavailable: {exc}",
             ) from exc
 
-    # Mechanical analysis is an explicit specialist route. It is proposal-only
-    # and never receives Action Engine or machine-control capabilities.
+    # Mechanical analysis may be explicitly selected or chosen by the Gateway.
+    # It is proposal-only and never receives machine-control capabilities.
     if body.get("model") == MECHANICAL_AGENT_MODEL:
         body["stream"] = False
         try:
@@ -152,33 +219,10 @@ async def chat(request: Request):
                 detail=f"Mechanical Engineering Agent unavailable: {exc}",
             ) from exc
 
-    messages = body.get("messages", [])
-
-    prompt = ""
-
-    for msg in reversed(messages):
-
-        if msg.get("role") == "user":
-
-            prompt = msg.get("content", "")
-
-            break
-
-
-    if len(prompt) > 1500:
-
-        prompt_for_router = prompt[-1500:]
-
-    else:
-
-        prompt_for_router = prompt
-
-
-
-    model = select_model(prompt_for_router)
+    model = select_default_backend(prompt)
 
     print(
-    f"[ROUTER] {prompt[:50]} -> {model} | messages={len(body.get('messages',[]))}"
+    f"[GATEWAY] {prompt[:50]} -> {model} | messages={len(body.get('messages',[]))}"
     )
 
     backend = BACKENDS[model]
@@ -209,7 +253,7 @@ def models():
                 "id": "auto",
                 "object": "model",
                 "owned_by": "llm-server",
-                "name": "Auto (Smart Router)"
+                "name": "Auto (LLM Gateway)"
             }
         ]
     }

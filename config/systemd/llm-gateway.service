@@ -1,10 +1,11 @@
 [Unit]
-Description=LLM Semantic Router API
+Description=LLM Gateway API
 After=network-online.target
 
 [Service]
 Type=simple
 User=root
+EnvironmentFile=-/opt/llm-server/.env
 
 WorkingDirectory=/opt/llm-server/apps/router
 

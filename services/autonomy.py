@@ -38,7 +38,8 @@ ACTION_MODE = os.environ.get("AUTONOMY_ACTION_MODE", "observe").lower()
 # This allowlist is the complete authority of the supervisor.  Do not accept
 # service names from a request, model response, environment variable, or file.
 SERVICES = {
-    "router": "http://127.0.0.1:5000/health",
+    "llm-gateway": "http://127.0.0.1:5000/health",
+    "embedding-classifier": "http://127.0.0.1:5400/health",
     "agent": "http://127.0.0.1:5100/health",
     "dashboard": os.environ.get("DASHBOARD_HEALTH_URL", "http://127.0.0.1:7000/api/health"),
     "electrical-engineer": "http://127.0.0.1:5301/health",

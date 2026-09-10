@@ -1,7 +1,7 @@
 # Mechanical Engineering Agent
 
 The Mechanical Engineering Agent is a proposal-only specialist available at
-`127.0.0.1:5302` and through the Semantic Router with model
+`127.0.0.1:5302` and through the LLM Gateway with model
 `mechanical-engineer`.
 
 It supports conceptual design review, statics, rotating equipment, machine

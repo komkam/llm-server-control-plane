@@ -7,7 +7,7 @@ ENDPOINTS = {
     "ollama": "http://localhost:11434/api/tags",
 
 
-    "router": "http://localhost:5000/health",
+    "llm-gateway": "http://localhost:5000/health",
 
 }
 

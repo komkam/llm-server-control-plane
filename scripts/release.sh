@@ -6,7 +6,7 @@ RELEASES="${BASE}/releases"
 STAGING="${BASE}/staging"
 LOCK="${RELEASES}/deploy.lock"
 PACKAGE_PATHS=(apps services config deploy scripts docs compose.yaml install.sh README.md CHANGELOG.md .gitignore .env.example)
-SERVICES=(ollama electrical-engineer mechanical-engineer monitor router agent dashboard autonomy)
+SERVICES=(ollama electrical-engineer mechanical-engineer monitor embedding-classifier llm-gateway agent dashboard autonomy)
 
 release_dir() {
   printf '%s/%s\n' "$RELEASES" "$1"

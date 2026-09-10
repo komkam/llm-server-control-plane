@@ -1,0 +1,18 @@
+[Unit]
+Description=LLM Gateway Embedding Intent Classifier
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=-/opt/llm-server/.env
+Environment=HF_HOME=/opt/llm-server/data/huggingface
+Environment=TOKENIZERS_PARALLELISM=false
+WorkingDirectory=/opt/llm-server/apps/embedding-classifier
+ExecStart=/opt/llm-server/apps/embedding-classifier/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 5400
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -4,7 +4,7 @@ import requests
 
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-ROUTER_URL = "http://localhost:5000/v1/chat/completions"
+GATEWAY_URL = "http://localhost:5000/v1/chat/completions"
 
 QWEN_MODEL = "qwen2.5:7b"
 
@@ -43,7 +43,7 @@ def get_llm_services():
                 "systemctl",
                 "status",
                 "ollama",
-                "router",
+                "llm-gateway",
                 "--no-pager"
             ],
             capture_output=True,
@@ -177,7 +177,7 @@ def benchmark_router(model, prompt):
     try:
 
         response = requests.post(
-            ROUTER_URL,
+            GATEWAY_URL,
             json=payload,
             headers={
                 "Authorization": "Bearer local-llm"
@@ -203,11 +203,11 @@ def benchmark_router(model, prompt):
 
 
 def get_llm_latency():
-    """Benchmark the active Qwen backend and its Router path only."""
+    """Benchmark the active Qwen backend and its LLM Gateway path only."""
     prompt = "Reply with exactly: OK"
     qwen = benchmark_qwen()
     router_qwen = benchmark_router("qwen-engineer", prompt)
-    result = {"direct": {"qwen": qwen}, "router": {"qwen": router_qwen}, "overhead": {}}
+    result = {"direct": {"qwen": qwen}, "llm-gateway": {"qwen": router_qwen}, "overhead": {}}
     if qwen.get("status") == 200 and router_qwen.get("status") == 200:
         result["overhead"]["router_qwen_ms"] = round(router_qwen["total_time_ms"] - qwen["total_time_ms"], 2)
     return result

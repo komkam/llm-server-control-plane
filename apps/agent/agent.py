@@ -2,7 +2,7 @@
 
 This module intentionally reuses the diagnostic functions in ``tools/``.  The
 model chooses tools through OpenAI-compatible function calling rather than a
-keyword router; LangGraph executes those calls and returns their structured
+keyword gateway; LangGraph executes those calls and returns their structured
 results to the model until it can answer the user.
 """
 
@@ -33,7 +33,7 @@ from tools.system import (
     get_uptime_info,
 )
 
-# The user-facing router selects chat backends.  This agent needs direct
+# The user-facing LLM Gateway selects chat backends.  This agent needs direct
 # tool-calling support, so it talks to the capable model endpoint itself.
 AI_CORE_URL = "http://localhost:11434/v1/chat/completions"
 MODEL = "qwen2.5:7b"
@@ -50,7 +50,7 @@ Use tools only when their data is relevant to the user's request.  Do not
 For dependency, architecture or service-relationship questions, use the bounded local graph tools when structured nodes and edges are available. Never invent graph edges; state assumptions.
 invent measurements.  Distinguish facts, inferences, and possible root causes.
 For LLM performance, prioritize inference latency, tokens/sec, GPU, CPU,
-memory, process configuration, and router overhead.  A fast health endpoint
+memory, process configuration, and gateway overhead.  A fast health endpoint
 does not prove model inference is fast.  Keep the final answer concise and
 technical.
 
@@ -72,7 +72,7 @@ TOOL_DESCRIPTIONS = {
     "get_docker_logs": "Read a bounded number of recent lines from one Docker container.",
     "get_docker_images": "List locally available Docker images.",
     "get_failed_services": "List failed systemd services.",
-    "get_llm_services": "Read status of Ollama and router services.",
+    "get_llm_services": "Read status of Ollama and LLM Gateway services.",
     "get_llm_latency": "Run active, small LLM latency benchmarks. Use only when performance measurement is explicitly requested.",
     "get_endpoint_health": "Check local LLM endpoint health and response time.",
     "get_system_logs": "Read a bounded number of recent system journal entries.",

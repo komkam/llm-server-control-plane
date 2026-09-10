@@ -36,7 +36,8 @@ by Git.
 | Grafana | 3100 | 8443 |
 | Control Panel | 7000 | 8444 |
 | Prometheus | 9090 | — |
-| Router API | 5000 | — |
+| LLM Gateway API | 5000 | — |
+| Embedding Classifier | 5400 (loopback) | — |
 | Diagnostic Agent | 5100 | — |
 | Electrical Engineering Agent | `5301` | — |
 | Mechanical Engineering Agent | `5302` | — |
@@ -50,7 +51,7 @@ Do not bind monitoring or control-plane ports directly to the public Internet.
 Review dependencies and enable only what the host needs, for example:
 
 ```bash
-sudo systemctl enable --now router.service agent.service dashboard.service
+sudo systemctl enable --now embedding-classifier.service llm-gateway.service agent.service dashboard.service
 sudo systemctl enable --now action-engine.service autonomy.service
 sudo systemctl enable --now control-plane-exporter.service gpu-exporter.service docker-exporter.service
 sudo systemctl enable --now observability.service

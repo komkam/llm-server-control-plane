@@ -1,7 +1,7 @@
 # Electrical Engineering Agent
 
 The Electrical Engineering Agent is a proposal-only specialist. It is available
-locally at `127.0.0.1:5301` and through the Semantic Router by explicitly
+locally at `127.0.0.1:5301` and through the LLM Gateway by explicitly
 selecting model `electrical-engineer`.
 
 It can help with conceptual design review, load estimation, single/three-phase

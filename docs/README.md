@@ -3,16 +3,18 @@
 ## Request path
 
 ```text
-Open WebUI (:3000) -> Router (:5000) -> Ollama/Qwen (:11434)
+Open WebUI (:3000) -> LLM Gateway (:5000) -> Ollama/Qwen (:11434)
 
 ```
 
-Open WebUI is the only user-facing chat UI.  The Router is the single policy
-layer: it chooses `qwen-engineer` for technical requests and `qwen-engineer` for
-simple requests, then translates those public names to backend-specific model
-names.
+Open WebUI is the only user-facing chat UI. The LLM Gateway is the single policy
+boundary: it removes unsupported tool payloads, uses hard safety rules and a
+local CPU-only embedding classifier to delegate system, electrical, and
+mechanical requests to their proposal-only specialists, uses Qwen for general
+requests, applies the language guard, and reports the chosen backend in each
+answer. Ambiguous requests stay with Qwen.
 
-Select `server-diagnostician` in Open WebUI for system diagnostics.  Router
+Select `server-diagnostician` in Open WebUI for system diagnostics.  LLM Gateway
 forwards that explicit model choice to the local LangGraph agent (`:5100`),
 which can inspect services, hardware, Docker, logs, and endpoint health.
 
@@ -21,7 +23,8 @@ which can inspect services, hardware, Docker, logs, and endpoint health.
 | Component | Runtime | Port | Purpose |
 | --- | --- | --- | --- |
 | Open WebUI | Docker Compose | 3000 | Chat UI and persistent user data |
-| Router | systemd (`router.service`) | 5000 | Model selection and proxy |
+| LLM Gateway | systemd (`llm-gateway.service`) | 5000 | Model selection and proxy |
+| Embedding Classifier | systemd (`embedding-classifier.service`) | 5400 (loopback) | Read-only semantic intent routing |
 | Ollama | systemd (`ollama.service`) | 11434 | Qwen inference |
 | Electrical Engineering Agent | systemd (`electrical-engineer.service`) | 5301 (loopback) | Proposal-only electrical analysis |
 | Dashboard | systemd (`dashboard.service`) | 7000 | Server status UI |
@@ -44,7 +47,7 @@ which can inspect services, hardware, Docker, logs, and endpoint health.
 ```bash
 cd /opt/llm-server
 docker compose ps
-systemctl status router ollama monitor dashboard --no-pager
+systemctl status embedding-classifier llm-gateway ollama monitor dashboard --no-pager
 ```
 
 Recovery material is deliberately retained in `backups/` and

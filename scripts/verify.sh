@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASE_DIR=/opt/llm-server
 DASHBOARD_HEALTH_URL=${DASHBOARD_HEALTH_URL:-http://127.0.0.1:7000/api/health}
-SERVICES=(ollama electrical-engineer mechanical-engineer monitor router agent dashboard autonomy)
+SERVICES=(ollama electrical-engineer mechanical-engineer monitor embedding-classifier llm-gateway agent dashboard autonomy)
 
 wait_for_http() {
   local url=$1 attempts=${2:-15}
@@ -18,7 +18,7 @@ wait_for_http() {
 
 verify_units() {
   local output
-  if ! output=$(systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,electrical-engineer,monitor,router}.service 2>&1); then
+  if ! output=$(systemd-analyze verify /etc/systemd/system/{agent,autonomy,dashboard,electrical-engineer,embedding-classifier,monitor,llm-gateway}.service 2>&1); then
     printf '%s\n' "$output" >&2
     return 1
   fi

@@ -8,8 +8,9 @@ this repository contains no device- or tailnet-specific address.
 
 ```text
 Open WebUI
-  -> Semantic Router
-     -> Ollama / Qwen
+  -> LLM Gateway
+     -> hard intent rules -> specialist agents
+     -> Embedding Classifier (CPU, confidence-gated)
      -> Ollama / Qwen
 
 Control Plane
@@ -57,8 +58,8 @@ Do not commit passwords, API keys, Tailscale auth keys, or backup credentials.
 
 ## Runtime behavior
 
-- The semantic router selects the local model automatically and reports the
-  selected model with responses.
+- The LLM Gateway uses hard intent rules and a local confidence-gated embedding
+  classifier to select a specialist or Qwen, then reports the selected model.
 - A response-language guard prevents unsupported CJK output from reaching Open
   WebUI when the requested response language does not allow it.
 - The Autonomy Supervisor is in `auto` mode only for explicit, bounded Action
@@ -111,7 +112,7 @@ use `config/secrets/README.md` as the local setup guide. Copy `.env.example` to 
 
 | Path | Purpose |
 | --- | --- |
-| `apps/` | Router, agent, action engine, and Control Panel application code |
+| `apps/` | LLM Gateway, agent, action engine, and Control Panel application code |
 | `services/` | Supervisor and read-only Prometheus exporters |
 | `deploy/` | Docker Compose definitions and image-update assets |
 | `config/` | Systemd, Observability, security, backup, and policy configuration |

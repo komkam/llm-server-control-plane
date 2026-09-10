@@ -20,8 +20,8 @@ approval capability.
 Ask `server-diagnostician` to analyse explicit nodes and edges, for example:
 
 ```text
-Use graph tool: nodes = router, qwen, electrical-engineer;
-edges = router -> qwen, electrical-engineer -> qwen.
+Use graph tool: nodes = llm-gateway, qwen, electrical-engineer;
+edges = llm-gateway -> qwen, electrical-engineer -> qwen.
 Return cycles, roots, leaves and Mermaid source.
 ```
 
